@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=5">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="description" content="Controle de reformas residenciais: plantas, fotos, materiais, estoque, custos e tarefas por ambiente.">
+<title>Obra em Dia</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icones/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Obra em Dia">
+<style>
+:root{
+  --bg:#f4f5f7; --card:#ffffff; --ink:#16191d; --ink2:#5a6472; --line:#e2e5ea;
+  --brand:#1d4ed8; --brand-ink:#ffffff; --brand-soft:#e8eefc;
+  --ok:#0f8a4a; --ok-soft:#e3f5eb; --warn:#b45309; --warn-soft:#fdf0dd;
+  --bad:#c62828; --bad-soft:#fdeaea;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 4px 14px rgba(16,24,40,.06);
+  --r:14px; --tap:48px;
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
+  --navh:64px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0f1216;--card:#181c22;--ink:#eef1f5;--ink2:#a2adbb;--line:#2a313a;
+  --brand:#4c86f7;--brand-ink:#08101f;--brand-soft:#1b2740;
+  --ok:#4ade80;--ok-soft:#12301f;--warn:#fbbf24;--warn-soft:#33260c;
+  --bad:#f87171;--bad-soft:#3a1618;--shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.35);}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg);color:var(--ink);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  overscroll-behavior-y:none;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- topo ---------- */
+header{
+  position:sticky;top:0;z-index:40;background:var(--brand);color:#fff;
+  padding:calc(var(--safe-t) + 8px) calc(var(--safe-r) + 12px) 10px calc(var(--safe-l) + 12px);
+  box-shadow:0 2px 10px rgba(0,0,0,.12);
+}
+.hrow{display:flex;align-items:center;gap:8px;min-height:var(--tap)}
+.hback{width:var(--tap);height:var(--tap);border-radius:12px;display:none;place-items:center;font-size:24px;color:#fff;flex:0 0 auto}
+.hback.on{display:grid}
+.htitle{flex:1;min-width:0}
+.htitle b{display:block;font-size:18px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.htitle span{display:block;font-size:12.5px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbtn{width:var(--tap);height:var(--tap);border-radius:12px;display:grid;place-items:center;font-size:20px;color:#fff;flex:0 0 auto;background:rgba(255,255,255,.14)}
+.hbtn:active{background:rgba(255,255,255,.3)}
+
+/* ---------- layout ---------- */
+main{
+  padding:14px calc(var(--safe-r) + 12px) calc(var(--navh) + var(--safe-b) + 28px) calc(var(--safe-l) + 12px);
+  max-width:900px;margin:0 auto;
+}
+.view{display:none}
+.view.on{display:block;animation:fade .18s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---------- nav inferior ---------- */
+nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:45;background:var(--card);
+  border-top:1px solid var(--line);
+  padding:0 calc(var(--safe-r)) var(--safe-b) calc(var(--safe-l));
+  display:flex;
+}
+nav button{
+  flex:1;min-height:var(--navh);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;color:var(--ink2);font-size:11px;font-weight:600;padding:6px 2px;position:relative;
+}
+nav button svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--brand)}
+nav button.on::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 4px 4px;background:var(--brand)}
+nav .badge{position:absolute;top:7px;left:calc(50% + 8px);min-width:17px;height:17px;padding:0 4px;border-radius:9px;
+  background:var(--bad);color:#fff;font-size:10px;line-height:17px;text-align:center;font-weight:700}
+
+/* ---------- cartões ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px;margin-bottom:12px;overflow-wrap:break-word}
+.list b,.card b{overflow-wrap:break-word}
+.mini{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 12px}
+@media(min-width:430px){.mini{grid-template-columns:repeat(4,1fr)}}
+.mini>div{min-width:0}
+.mini span{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink2);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.card.tap{cursor:pointer}
+.card.tap:active{transform:scale(.995);border-color:var(--brand)}
+.sec{margin:18px 0 8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sec h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink2)}
+.muted{color:var(--ink2)}
+.small{font-size:13px}
+.tiny{font-size:12px}
+.right{text-align:right}
+.row{display:flex;align-items:center;gap:10px}
+.row.wrap{flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l2{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:break-word}
+
+/* ---------- botões ---------- */
+.btn{min-height:var(--tap);padding:0 16px;border-radius:12px;background:var(--brand);color:var(--brand-ink);
+  font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:15px}
+.btn:active{filter:brightness(.92)}
+.btn.gh{background:var(--card);color:var(--ink);border:1.5px solid var(--line)}
+.btn.gh:active{border-color:var(--brand);color:var(--brand)}
+.btn.dz{background:var(--bad-soft);color:var(--bad);border:1.5px solid transparent}
+.btn.wide{width:100%}
+.btn.sm{min-height:48px;padding:0 14px;font-size:14.5px;border-radius:11px}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.iconbtn{width:var(--tap);height:var(--tap);border-radius:12px;display:grid;place-items:center;font-size:19px;color:var(--ink2);flex:0 0 auto}
+.iconbtn:active{background:var(--brand-soft);color:var(--brand)}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.btns .btn{flex:1;min-width:130px}
+
+/* ---------- chips / filtro ---------- */
+.chipwrap{position:relative;margin:0 -4px}
+.chipwrap::after{content:"";position:absolute;top:0;right:0;bottom:8px;width:28px;pointer-events:none;
+  background:linear-gradient(90deg,transparent,var(--bg))}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 4px 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chip{min-height:48px;padding:0 15px;border-radius:20px;border:1.5px solid var(--line);background:var(--card);
+  color:var(--ink2);font-size:14px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;flex:0 0 auto}
+.chip.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:700;
+  background:var(--brand-soft);color:var(--brand)}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+
+/* ---------- métricas ---------- */
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:560px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;box-shadow:var(--shadow)}
+.kpi b{display:block;font-size:20px;letter-spacing:-.02em;margin-top:2px}
+.kpi span{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink2);font-weight:700}
+.bar{height:8px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:8px}
+.bar>i{display:block;height:100%;background:var(--ok);border-radius:5px;transition:width .3s}
+.bar>i.warn{background:var(--warn)} .bar>i.bad{background:var(--bad)}
+
+/* ---------- formulários ---------- */
+label{display:block;font-size:12.5px;font-weight:700;color:var(--ink2);margin:12px 0 5px;text-transform:uppercase;letter-spacing:.04em}
+input[type=text],input[type=number],input[type=date],select,textarea{
+  width:100%;min-height:var(--tap);padding:11px 12px;border-radius:12px;border:1.5px solid var(--line);
+  background:var(--card);color:var(--ink);font-size:16px}
+textarea{min-height:96px;resize:vertical;line-height:1.45}
+input:focus,select,textarea:focus{outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint{font-size:12.5px;color:var(--ink2);margin-top:6px}
+.err{font-size:13px;color:var(--bad);margin-top:6px;font-weight:600;display:none}
+.err.on{display:block}
+
+/* ---------- modal ---------- */
+.ov{position:fixed;inset:0;background:rgba(8,12,18,.55);z-index:60;display:none;align-items:flex-end;justify-content:center}
+.ov.on{display:flex}
+@media(min-width:640px){.ov.on{align-items:center}}
+.sheet{background:var(--bg);width:100%;max-width:640px;max-height:92vh;border-radius:20px 20px 0 0;
+  display:flex;flex-direction:column;animation:up .22s cubic-bezier(.2,.8,.3,1)}
+@media(min-width:640px){.sheet{border-radius:20px}}
+@keyframes up{from{transform:translateY(20px);opacity:.6}to{transform:none;opacity:1}}
+.sheet header{position:static;background:var(--card);color:var(--ink);border-bottom:1px solid var(--line);
+  border-radius:20px 20px 0 0;padding:6px 8px 6px 16px;box-shadow:none}
+.sheet header .hrow h3{font-size:17px;flex:1}
+.sbody{overflow-y:auto;padding:4px 16px 16px;-webkit-overflow-scrolling:touch}
+.sfoot{padding:12px 16px calc(12px + var(--safe-b));border-top:1px solid var(--line);background:var(--card);display:flex;gap:10px}
+.sfoot .btn{flex:1}
+
+/* ---------- listas ---------- */
+.item{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--line);min-height:var(--tap)}
+.item:last-child{border-bottom:0}
+.list{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;margin-bottom:12px}
+.av{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:20px;background:var(--brand-soft);color:var(--brand);flex:0 0 auto;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover}
+.capa{width:100%;height:112px;border-radius:11px;object-fit:cover;display:block;margin-bottom:10px;background:var(--brand-soft)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;background:var(--brand-soft);color:var(--brand);font-size:12.5px;font-weight:700}
+.check{width:30px;height:30px;border-radius:9px;border:2px solid var(--line);display:grid;place-items:center;flex:0 0 auto;
+  font-size:17px;color:transparent;background:var(--card)}
+.check.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.done .tt{text-decoration:line-through;color:var(--ink2)}
+.tapzone{min-width:var(--tap);min-height:var(--tap);display:grid;place-items:center;margin:-9px -9px -9px 0;padding:9px}
+
+/* ---------- arquivos ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+.faixa{display:flex;gap:9px;overflow-x:auto;padding:2px 4px 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.faixa::-webkit-scrollbar{display:none}
+.faixa .thumb{flex:0 0 96px;width:96px;height:96px;aspect-ratio:auto}
+.thumb{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--card);border:1px solid var(--line);display:grid;place-items:center}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .doc{font-size:30px;color:var(--ink2)}
+.thumb .cap{position:absolute;left:0;right:0;bottom:0;padding:14px 6px 5px;font-size:10.5px;color:#fff;font-weight:600;
+  background:linear-gradient(transparent,rgba(0,0,0,.8));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thumb .kind{position:absolute;top:5px;left:5px;font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.6);color:#fff;text-transform:uppercase}
+.viewer{position:fixed;inset:0;background:#000;z-index:80;display:none;flex-direction:column}
+.viewer.on{display:flex}
+.viewer .vtop{display:flex;align-items:center;gap:6px;padding:calc(var(--safe-t) + 6px) 8px 6px;color:#fff;background:rgba(0,0,0,.6)}
+.viewer .vtop .grow{font-size:14px;font-weight:600}
+.viewer .vbody{flex:1;overflow:auto;display:grid;place-items:center;padding:8px}
+.viewer img{max-width:100%;max-height:100%;object-fit:contain}
+.viewer .vfoot{padding:10px 12px calc(10px + var(--safe-b));display:flex;gap:10px;background:rgba(0,0,0,.6)}
+
+/* ---------- diversos ---------- */
+.empty{text-align:center;padding:34px 18px;color:var(--ink2)}
+.empty .big{font-size:44px;margin-bottom:8px;opacity:.55}
+.empty p{margin:6px 0 16px;font-size:14.5px}
+.fab{position:fixed;right:calc(var(--safe-r) + 14px);bottom:calc(var(--navh) + var(--safe-b) + 14px);z-index:44;
+  width:58px;height:58px;border-radius:29px;background:var(--brand);color:var(--brand-ink);font-weight:700;
+  box-shadow:0 6px 20px rgba(29,78,216,.42);display:grid;place-items:center;font-size:24px;border:2px solid var(--bg)}
+.fab:active{transform:scale(.97)}
+.fab.oculto{transform:translateY(140%);opacity:0;pointer-events:none;transition:.2s}
+.toast{position:fixed;left:50%;bottom:calc(var(--navh) + var(--safe-b) + 20px);transform:translate(-50%,14px);
+  z-index:90;background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:24px;font-size:14px;font-weight:600;
+  opacity:0;pointer-events:none;transition:.22s;max-width:88vw;text-align:center;box-shadow:var(--shadow)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.loading{position:fixed;inset:0;background:var(--bg);z-index:100;display:grid;place-items:center;gap:12px;text-align:center}
+.spin{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.money{font-variant-numeric:tabular-nums;font-weight:700}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+</style>
+</head>
+<body>
+<div class="loading" id="boot"><div><div class="spin"></div><b>Obra em Dia</b><div class="small muted">carregando seus projetos…</div></div></div>
+
+<header>
+  <div class="hrow">
+    <button class="hback" id="btnBack" aria-label="Voltar">‹</button>
+    <div class="htitle"><b id="hTitle">Obra em Dia</b><span id="hSub">—</span></div>
+    <button class="hbtn" id="fabClaude" aria-label="Perguntar ao Claude" title="Perguntar ao Claude">✨</button>
+    <button class="hbtn" id="btnUnits" aria-label="Trocar de unidade" title="Trocar de unidade">🏠</button>
+    <button class="hbtn" id="btnMenu" aria-label="Menu" title="Menu">⋯</button>
+  </div>
+</header>
+
+<main>
+  <!-- PAINEL -->
+  <section class="view on" id="v-painel">
+    <div class="kpis" id="kpis"></div>
+    <div class="card" id="cardProg"></div>
+    <div class="card" id="cardOrc"></div>
+    <div id="secFotos"></div>
+    <div class="sec"><h2>Ambientes</h2><button class="btn sm gh" data-go="ambientes">Ver todos</button></div>
+    <div id="painelAmb"></div>
+    <div class="sec"><h2>Próximas tarefas</h2><button class="btn sm gh" data-go="tarefas">Ver todas</button></div>
+    <div id="painelTar"></div>
+    <div class="sec"><h2>Atenção</h2></div>
+    <div id="painelAlerta"></div>
+    <button class="btn gh wide" id="claudePainel">✨ Perguntar ao Claude sobre a obra</button>
+  </section>
+
+  <!-- AMBIENTES -->
+  <section class="view" id="v-ambientes">
+    <div id="listaAmb"></div>
+    <button class="btn wide gh" id="addAmb">＋ Novo ambiente</button>
+  </section>
+
+  <!-- MATERIAIS -->
+  <section class="view" id="v-materiais">
+    <div class="chipwrap"><div class="chips" id="filtroMat"></div></div>
+    <div class="card" id="resumoMat"></div>
+    <div id="listaMat"></div>
+    <button class="btn wide gh" id="addMat">＋ Novo material</button>
+  </section>
+
+  <!-- TAREFAS -->
+  <section class="view" id="v-tarefas">
+    <div class="chipwrap"><div class="chips" id="filtroTar"></div></div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="grow small muted" id="resumoTar"></div>
+      <button class="btn sm gh" id="toggleFeitas">Mostrar feitas</button>
+    </div>
+    <div id="listaTar"></div>
+    <button class="btn wide gh" id="addTar">＋ Nova tarefa</button>
+  </section>
+
+  <!-- ARQUIVOS -->
+  <section class="view" id="v-arquivos">
+    <div class="chipwrap"><div class="chips" id="filtroArq"></div></div>
+    <div class="chipwrap"><div class="chips" id="filtroCat"></div></div>
+    <div class="row" style="margin:2px 0 10px"><div class="grow small muted" id="resumoArq"></div></div>
+    <div class="grid" id="gridArq"></div>
+    <div id="vazioArq"></div>
+    <div style="height:12px"></div>
+    <button class="btn wide gh" id="addArq">＋ Adicionar planta ou foto</button>
+  </section>
+
+  <!-- AMBIENTE (detalhe) -->
+  <section class="view" id="v-ambiente">
+    <div class="card" id="ambHead"></div>
+    <div class="chipwrap"><div class="chips" id="ambTabs"></div></div>
+    <div id="ambConteudo"></div>
+  </section>
+</main>
+
+<nav id="nav">
+  <button data-v="painel" class="on"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M9.8 19.5v-6h4.4v6"/></svg>Painel</button>
+  <button data-v="ambientes"><svg viewBox="0 0 24 24"><rect x="3.2" y="4.2" width="17.6" height="15.6" rx="2.2"/><path d="M3.2 12h17.6M12 4.2v15.6"/></svg>Ambientes</button>
+  <button data-v="materiais"><svg viewBox="0 0 24 24"><path d="M3.5 7.6 12 3.4l8.5 4.2v8.8L12 20.6 3.5 16.4z"/><path d="M3.5 7.6 12 11.8l8.5-4.2M12 11.8v8.8"/></svg>Materiais</button>
+  <button data-v="tarefas"><svg viewBox="0 0 24 24"><path d="m3.6 7.4 2.3 2.3 3.6-3.6"/><path d="m3.6 16.4 2.3 2.3 3.6-3.6"/><path d="M13 7.9h7.4M13 16.9h7.4"/></svg>Tarefas<span class="badge" id="badgeTar" hidden></span></button>
+  <button data-v="arquivos"><svg viewBox="0 0 24 24"><rect x="3.3" y="4.6" width="17.4" height="14.8" rx="2.2"/><path d="m4.6 16.6 4.3-4.5 3.1 3 2.7-2.4 4.7 4.4"/><circle cx="9" cy="9.1" r="1.5"/></svg>Arquivos</button>
+</nav>
+
+<!-- modal genérico -->
+<div class="ov" id="ov" role="dialog" aria-modal="true" aria-labelledby="ovTitle">
+  <div class="sheet">
+    <header><div class="hrow"><h3 id="ovTitle">—</h3><button class="iconbtn" id="ovClose" aria-label="Fechar">✕</button></div></header>
+    <div class="sbody" id="ovBody"></div>
+    <div class="sfoot" id="ovFoot"></div>
+  </div>
+</div>
+
+<!-- visualizador de arquivo -->
+<div class="viewer" id="viewer" role="dialog" aria-modal="true">
+  <div class="vtop">
+    <button class="iconbtn" id="vClose" style="color:#fff" aria-label="Fechar">✕</button>
+    <div class="grow ell" id="vName">—</div>
+  </div>
+  <div class="vbody" id="vBody"></div>
+  <div class="vfoot">
+    <button class="btn gh" id="vOpen" style="flex:1">Abrir em nova aba</button>
+    <button class="btn gh" id="vVal" style="flex:0 0 auto">💲</button>
+    <button class="btn dz" id="vDel" style="flex:0 0 auto">Excluir</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="filePick" multiple hidden>
+<input type="file" id="jsonPick" accept="application/json,.json" hidden>
+<script>
+"use strict";
+/* ============================================================
+   Obra em Dia — controle de reformas residenciais
+   Dados no próprio aparelho (IndexedDB). Nada sai daqui.
+   ============================================================ */
+
+/* ---------- utilidades ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtBRL = n => (isFinite(n) ? n : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+const fmtNum = (n, d = 2) => (isFinite(n) ? n : 0).toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:d});
+function parseNum(v){
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  if (!v) return 0;
+  let s = String(v).trim().replace(/[^\d.,-]/g, '');
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');  // 50.000 = cinquenta mil
+  const n = parseFloat(s);
+  return isFinite(n) ? n : 0;
+}
+const pl = (n, s1, s2) => `${n} ${n === 1 ? s1 : (s2 || s1 + 's')}`;
+const hoje = () => new Date().toISOString().slice(0, 10);
+function fmtData(iso){
+  if (!iso) return '';
+  const p = String(iso).slice(0,10).split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : iso;
+}
+function diasAte(iso){
+  if (!iso) return null;
+  const a = new Date(iso + 'T00:00:00'), b = new Date(hoje() + 'T00:00:00');
+  return Math.round((a - b) / 86400000);
+}
+function fmtBytes(b){
+  if (!b) return '';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(0) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+let toastT;
+function toast(msg, ms = 2400){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms);
+}
+
+/* ---------- banco local ---------- */
+const DB_NAME = 'obraemdia', DB_VER = 1;
+let _db = null;
+function db(){
+  if (_db) return Promise.resolve(_db);
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('kv')) d.createObjectStore('kv');
+      if (!d.objectStoreNames.contains('files')) d.createObjectStore('files', {keyPath:'id'});
+    };
+    r.onsuccess = () => { _db = r.result; res(_db); };
+    r.onerror = () => rej(r.error);
+  });
+}
+function tx(store, mode, fn){
+  return db().then(d => new Promise((res, rej) => {
+    const t = d.transaction(store, mode), s = t.objectStore(store);
+    let out; try { out = fn(s); } catch(e){ rej(e); return; }
+    t.oncomplete = () => res(out && out.result !== undefined ? out.result : out);
+    t.onerror = () => rej(t.error);
+    t.onabort = () => rej(t.error || new Error('transação abortada'));
+  }));
+}
+const dbGet   = (store, k) => tx(store, 'readonly',  s => s.get(k));
+const dbPut   = (store, v, k) => tx(store, 'readwrite', s => s.put(v, k));
+const dbDel   = (store, k) => tx(store, 'readwrite', s => s.delete(k));
+const dbAll   = store => tx(store, 'readonly', s => s.getAll());
+const dbKeys  = store => tx(store, 'readonly', s => s.getAllKeys());
+
+/* ---------- estado ---------- */
+let S = null;                                   // estado do app
+const ui = { view:'painel', amb:null, filtroAmb:'all', filtroCat:'all', ambTab:'arquivos', verFeitas:false, soFalta:false };
+let salvarT;
+function salvar(imediato){
+  clearTimeout(salvarT);
+  const go = () => dbPut('kv', JSON.parse(JSON.stringify(S)), 'state').catch(e => {
+    console.error(e); toast('⚠️ Não consegui salvar. Espaço do aparelho cheio?', 5000);
+  });
+  if (imediato) return go();
+  salvarT = setTimeout(go, 250);
+}
+const AMBIENTES_INICIAIS = ['Quarto Arthur','Banheiro Arthur','Banheiro Suíte Master','Banheiro Social','Banheiro Francisco'];
+function novoAmbiente(nome){
+  return {id:uid(), nome, obs:'', largura:0, comprimento:0, peDireito:0, arquivos:[], materiais:[], tarefas:[]};
+}
+function estadoInicial(){
+  return {
+    v: 1,
+    unidadeAtual: null,
+    unidades: [{
+      id: uid(), nome: 'AP 103A — Porto das Dunas', endereco: '', orcamento: 0,
+      criadoEm: hoje(), ambientes: AMBIENTES_INICIAIS.map(novoAmbiente)
+    }]
+  };
+}
+const U = () => S.unidades.find(u => u.id === S.unidadeAtual) || S.unidades[0];
+const A = id => { const u = U(); return u ? u.ambientes.find(a => a.id === id) : null; };
+const nomeAmb = id => { const a = A(id); return a ? a.nome : 'Sem ambiente'; };
+
+/* ---------- cálculos ---------- */
+const estoqueMat = m => parseNum(m.qtdComprada) - parseNum(m.qtdUsada);
+const faltaMat   = m => Math.max(0, parseNum(m.qtdPrevista) - parseNum(m.qtdComprada));
+const custoMat   = m => parseNum(m.qtdComprada) * parseNum(m.precoUnit);
+const custoPrev  = m => Math.max(parseNum(m.qtdPrevista), parseNum(m.qtdComprada)) * parseNum(m.precoUnit);
+function statusMat(m){
+  if (faltaMat(m) > 0) return {t:'Falta comprar', c:'warn'};
+  if (estoqueMat(m) > 0) return {t:'Em estoque', c:'ok'};
+  if (parseNum(m.qtdComprada) > 0) return {t:'Aplicado', c:''};
+  return {t:'A definir', c:''};
+}
+function totaisUnidade(){
+  const u = U(); const r = {gasto:0, previsto:0, mats:0, faltando:0, faltaValor:0, tarefas:0, feitas:0, atrasadas:0, arquivos:0, ambientes:0};
+  if (!u) return r;
+  r.ambientes = u.ambientes.length;
+  u.ambientes.forEach(a => {
+    a.materiais.forEach(m => { r.gasto += custoMat(m); r.previsto += custoPrev(m); r.mats++;
+      if (faltaMat(m) > 0){ r.faltando++; r.faltaValor += faltaMat(m) * parseNum(m.precoUnit); } });
+    a.tarefas.forEach(t => { if (t.feita) r.feitas++; else { r.tarefas++; const d = diasAte(t.prazo); if (d !== null && d < 0) r.atrasadas++; } });
+    r.arquivos += a.arquivos.length;
+  });
+  return r;
+}
+function totaisAmb(a){
+  const r = {gasto:0, previsto:0, mats:a.materiais.length, faltando:0, tarefas:0, feitas:0, arquivos:a.arquivos.length};
+  a.materiais.forEach(m => { r.gasto += custoMat(m); r.previsto += custoPrev(m); if (faltaMat(m) > 0) r.faltando++; });
+  a.tarefas.forEach(t => t.feita ? r.feitas++ : r.tarefas++);
+  return r;
+}
+const areaPiso = a => parseNum(a.largura) * parseNum(a.comprimento);
+const areaParede = a => 2 * (parseNum(a.largura) + parseNum(a.comprimento)) * parseNum(a.peDireito);
+
+/* ---------- arquivos: compressão e cache ---------- */
+const urlCache = new Map();
+function urlDe(id, blob){
+  if (urlCache.has(id)) return urlCache.get(id);
+  const u = URL.createObjectURL(blob); urlCache.set(id, u); return u;
+}
+function limparUrl(id){
+  if (urlCache.has(id)){ URL.revokeObjectURL(urlCache.get(id)); urlCache.delete(id); }
+  if (urlCache.has(id + ':t')){ URL.revokeObjectURL(urlCache.get(id + ':t')); urlCache.delete(id + ':t'); }
+}
+function comprimir(file, max, q){
+  return new Promise(res => {
+    const img = new Image(), fr = new FileReader();
+    const falhou = () => res(null);
+    img.onload = () => {
+      try {
+        let {width:w, height:h} = img;
+        if (!w || !h) return falhou();
+        const fator = Math.min(1, max / Math.max(w, h));
+        w = Math.round(w * fator); h = Math.round(h * fator);
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        c.toBlob(b => res(b || null), 'image/jpeg', q);
+      } catch(e){ falhou(); }
+    };
+    img.onerror = falhou;
+    fr.onload = () => { img.src = fr.result; };
+    fr.onerror = falhou;
+    fr.readAsDataURL(file);
+  });
+}
+async function guardarArquivo(file, cat, matId){
+  const id = uid();
+  const ehImg = /^image\//.test(file.type);
+  let blob = file, thumb = null;
+  if (ehImg){
+    const g = await comprimir(file, 1600, 0.72);
+    const t = await comprimir(file, 320, 0.6);
+    if (g && g.size < file.size) blob = g;
+    thumb = t || null;
+  }
+  await dbPut('files', {id, blob, thumb, nome:file.name, tipo:file.type});
+  return {id, nome:file.name || 'arquivo', tipo:file.type || '', cat:cat || 'foto', tamanho:blob.size, data:hoje(), matId:matId || null};
+}
+async function apagarArquivo(fid){
+  limparUrl(fid);
+  try { await dbDel('files', fid); } catch(e){ console.warn(e); }
+}
+const CATS = {planta:'📐 Planta', foto:'📷 Foto', recibo:'🧾 Recibo', orcamento:'📄 Orçamento', outro:'📎 Outro'};
+const icoCat = c => (CATS[c] || CATS.outro).slice(0, 2);
+</script>
+<script>
+"use strict";
+/* ============================ NAVEGAÇÃO ============================ */
+function irPara(v, opts){
+  if (v !== 'materiais') ui.soFalta = false;
+  ui.view = v;
+  if (opts && opts.amb !== undefined) ui.amb = opts.amb;
+  $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === (v === 'ambiente' ? 'ambientes' : v)));
+  const back = v === 'ambiente';
+  $('#btnBack').classList.toggle('on', back);
+  window.scrollTo(0, 0);
+  render();
+}
+function render(){
+  const u = U();
+  if (!u){ return; }
+  const t = totaisUnidade();
+  const b = $('#badgeTar');
+  if (t.tarefas > 0){ b.hidden = false; b.textContent = t.tarefas > 99 ? '99+' : t.tarefas; } else b.hidden = true;
+  const titulos = {painel:'Obra em Dia', ambientes:'Ambientes', materiais:'Materiais', tarefas:'Tarefas', arquivos:'Arquivos'};
+  if (ui.view === 'ambiente'){
+    const a = A(ui.amb);
+    $('#hTitle').textContent = a ? a.nome : 'Ambiente';
+    $('#hSub').textContent = u.nome;
+  } else {
+    $('#hTitle').textContent = titulos[ui.view] || 'Obra em Dia';
+    $('#hSub').textContent = u.nome + (u.ambientes.length ? ` · ${u.ambientes.length} ambiente${u.ambientes.length>1?'s':''}` : '');
+  }
+  $('#fabClaude').style.display = 'grid';
+  $('#btnUnits').style.display = S.unidades.length > 1 ? 'grid' : 'none';
+  ({painel:renderPainel, ambientes:renderAmbientes, materiais:renderMateriais,
+    tarefas:renderTarefas, arquivos:renderArquivos, ambiente:renderAmbiente}[ui.view] || renderPainel)();
+}
+
+/* ============================ PAINEL ============================ */
+function renderPainel(){
+  const u = U(), t = totaisUnidade();
+  $('#kpis').innerHTML = `
+    <div class="kpi"><span>Gasto</span><b class="money">${fmtBRL(t.gasto)}</b></div>
+    <div class="kpi"><span>Previsto</span><b class="money">${fmtBRL(t.previsto)}</b></div>
+    <div class="kpi"><span>Em aberto</span><b>${t.tarefas}${t.atrasadas ? ` <span class="tag bad">${pl(t.atrasadas,'atrasada')}</span>` : ''}</b></div>
+    <div class="kpi"><span>Arquivos</span><b>${t.arquivos}</b></div>`;
+
+  const tot = t.feitas + t.tarefas;
+  const pctT = tot ? (t.feitas / tot) * 100 : 0;
+  $('#cardProg').innerHTML = `<div class="row"><div class="grow"><b>Andamento da obra</b>
+      <div class="small muted">${t.feitas} de ${tot} ${tot === 1 ? 'tarefa concluída' : 'tarefas concluídas'}${t.faltando ? ` · ${fmtBRL(t.faltaValor)} ainda por comprar` : ''}</div></div>
+      <div class="right"><b style="font-size:19px">${fmtNum(pctT,0)}%</b></div></div>
+    <div class="bar"><i style="width:${pctT}%"></i></div>`;
+
+  const orc = parseNum(u.orcamento);
+  const pct = orc > 0 ? Math.min(100, (t.gasto / orc) * 100) : 0;
+  const cls = pct > 100 ? 'bad' : pct > 80 ? 'warn' : '';
+  $('#cardOrc').innerHTML = orc > 0 ? `
+    <div class="row"><div class="grow"><b>Orçamento da obra</b><div class="small muted">${fmtBRL(t.gasto)} de ${fmtBRL(orc)}</div></div>
+    <div class="right"><b class="money" style="font-size:19px">${fmtNum(pct,0)}%</b><div class="tiny muted">${t.gasto > orc ? 'estourou ' + fmtBRL(t.gasto-orc) : 'restam ' + fmtBRL(orc - t.gasto)}</div></div></div>
+    <div class="bar"><i class="${cls}" style="width:${Math.min(100,pct)}%"></i></div>`
+   : `<b>Definir orçamento</b><div class="small muted" style="margin:3px 0 10px">Informe o teto da obra para acompanhar o quanto já foi gasto.</div>
+      <button class="btn sm gh wide" onclick="editarUnidade('${u.id}')">Definir orçamento</button>`;
+
+  const ambs = u.ambientes.slice().sort((a,b) => totaisAmb(b).gasto - totaisAmb(a).gasto).slice(0, 4);
+  $('#painelAmb').innerHTML = ambs.length ? '<div class="list">' + ambs.map(a => {
+    const x = totaisAmb(a);
+    return `<div class="item" role="button" tabindex="0" onclick="irPara('ambiente',{amb:'${a.id}'})">
+      <div class="av" data-capa="${a.id}">${icoAmb(a.nome)}</div>
+      <div class="grow"><div class="ell"><b>${esc(a.nome)}</b></div>
+      <div class="tiny muted">${pl(x.mats,'material','materiais')} · ${pl(x.tarefas,'tarefa aberta','tarefas abertas')} · ${pl(x.arquivos,'arquivo')}</div></div>
+      <div class="right"><div class="money small">${fmtBRL(x.gasto)}</div></div><div class="muted">›</div></div>`;
+  }).join('') + '</div>' : vazio('◫', 'Nenhum ambiente ainda', 'Crie o primeiro ambiente da obra.', 'addAmb');
+  pintarCapas($('#painelAmb'));
+
+  const fotos = [];
+  u.ambientes.forEach(a => a.arquivos.forEach(f => { if (/^image\//.test(f.tipo || '')) fotos.push({...f, ambId:a.id, amb:a.nome}); }));
+  fotos.sort((x, y) => (y.data || '').localeCompare(x.data || ''));
+  if (fotos.length){
+    $('#secFotos').innerHTML = `<div class="sec"><h2>Registro recente</h2><button class="btn sm gh" data-go2="arquivos">Ver todos</button></div>
+      <div class="faixa" id="faixaFotos"></div>`;
+    $('#secFotos').querySelector('[data-go2]').onclick = () => irPara('arquivos');
+    pintarArquivos(fotos.slice(0, 8), $('#faixaFotos'), document.createElement('div'), null);
+  } else $('#secFotos').innerHTML = '';
+
+  const prox = [];
+  u.ambientes.forEach(a => a.tarefas.forEach(t2 => { if (!t2.feita) prox.push({...t2, amb:a.nome, ambId:a.id}); }));
+  prox.sort(ordenaTarefa);
+  $('#painelTar').innerHTML = prox.length ? '<div class="list">' + prox.slice(0, 5).map(t2 => linhaTarefa(t2, true)).join('') + '</div>'
+    : `<div class="card"><div class="small muted">Nenhuma tarefa aberta. 👏</div></div>`;
+
+  const al = [];
+  if (t.atrasadas) al.push(['bad', `${pl(t.atrasadas,'tarefa')} com prazo vencido`, 'tarefas']);
+  if (t.faltando) al.push(['warn', `${pl(t.faltando,'material','materiais')} por comprar — ${fmtBRL(t.faltaValor)}`, 'compras']);
+  if (orc > 0 && t.gasto > orc) al.push(['bad', `Gasto acima do orçamento em ${fmtBRL(t.gasto - orc)}`, 'materiais']);
+  if (!t.arquivos) al.push(['', 'Nenhuma planta ou foto guardada ainda', 'arquivos']);
+  $('#painelAlerta').innerHTML = al.length ? '<div class="list">' + al.map(([c, txt, v]) =>
+    `<div class="item" role="button" tabindex="0" onclick="${v === 'compras' ? "irPara('materiais');ui.soFalta=true;render()" : `irPara('${v}')`}"><div class="av" style="background:var(--${c||'brand'}-soft);color:var(--${c||'brand'})">!</div>
+    <div class="grow small">${esc(txt)}</div><div class="muted">›</div></div>`).join('') + '</div>'
+    : `<div class="card"><div class="small muted">Tudo em ordem por aqui. ✅</div></div>`;
+}
+function icoAmb(nome){
+  const n = (nome || '').toLowerCase();
+  if (n.includes('banheiro') || n.includes('lavabo')) return '🚿';
+  if (n.includes('cozinha')) return '🍳';
+  if (n.includes('quarto') || n.includes('suíte') || n.includes('suite')) return '🛏️';
+  if (n.includes('sala') || n.includes('estar')) return '🛋️';
+  if (n.includes('varanda') || n.includes('área') || n.includes('area')) return '🌿';
+  if (n.includes('garagem')) return '🚗';
+  if (n.includes('escritório') || n.includes('escritorio')) return '💼';
+  return '🏠';
+}
+async function pintarCapas(escopo){
+  const alvos = escopo.querySelectorAll('[data-capa]');
+  for (const el of alvos){
+    const a = A(el.dataset.capa); if (!a) continue;
+    const foto = a.arquivos.filter(f => /^image\//.test(f.tipo || '') && f.cat !== 'recibo').sort((x, y) => (y.data || '').localeCompare(x.data || ''))[0];
+    if (!foto) continue;
+    try {
+      const rec = await dbGet('files', foto.id); if (!rec) continue;
+      const b = rec.thumb || rec.blob; if (!b) continue;
+      const img = new Image(); img.alt = ''; img.loading = 'lazy'; img.src = urlDe(foto.id + ':t', b);
+      if (el.classList.contains('capa-box')) { el.innerHTML = ''; img.className = 'capa'; el.appendChild(img); }
+      else { el.innerHTML = ''; el.appendChild(img); }
+    } catch(e){ console.warn(e); }
+  }
+}
+function vazio(ico, tit, txt, btnId, btnTxt){
+  return `<div class="card empty"><div class="big">${ico}</div><b>${esc(tit)}</b><p>${esc(txt)}</p>
+    ${btnId ? `<button class="btn" onclick="document.getElementById('${btnId}').click()">${esc(btnTxt || '＋ Adicionar')}</button>` : ''}</div>`;
+}
+
+/* ============================ AMBIENTES ============================ */
+function renderAmbientes(){
+  const u = U();
+  $('#listaAmb').innerHTML = u.ambientes.length ? u.ambientes.map(a => {
+    const x = totaisAmb(a), area = areaPiso(a);
+    const feitasPct = (x.tarefas + x.feitas) ? (x.feitas / (x.tarefas + x.feitas)) * 100 : 0;
+    const tot = x.feitas + x.tarefas;
+    return `<div class="card tap" role="button" tabindex="0" onclick="irPara('ambiente',{amb:'${a.id}'})">
+      <div data-capa="${a.id}" class="capa-box"></div>
+      <div class="row"><div class="grow"><b>${icoAmb(a.nome)} ${esc(a.nome)}</b>
+        <div class="tiny muted">${area > 0 ? fmtNum(area) + ' m² · ' : ''}${pl(x.arquivos,'arquivo')} · ${pl(x.mats,'material','materiais')}</div></div>
+        <div class="right"><div class="money">${fmtBRL(x.gasto)}</div>
+        ${x.faltando ? `<span class="tag warn">${x.faltando} a comprar</span>` : ''}</div></div>
+      ${tot ? `<div class="bar"><i style="width:${feitasPct}%"></i></div>
+      <div class="tiny muted" style="margin-top:6px">${x.feitas} de ${tot} ${tot === 1 ? 'tarefa concluída' : 'tarefas concluídas'}</div>` : ''}
+    </div>`;
+  }).join('') : vazio('◫','Nenhum ambiente','Cadastre os cômodos da obra para organizar plantas, materiais e tarefas.','addAmb','＋ Novo ambiente');
+  pintarCapas($('#listaAmb'));
+}
+
+/* ============================ AMBIENTE (detalhe) ============================ */
+function renderAmbiente(){
+  const a = A(ui.amb);
+  if (!a){ irPara('ambientes'); return; }
+  const x = totaisAmb(a), ap = areaPiso(a), pa = areaParede(a);
+  $('#ambHead').innerHTML = `
+    <div class="row" style="align-items:flex-start"><div class="grow mini">
+        ${ap > 0 ? `<div><span>Piso</span><b>${fmtNum(ap)} m²</b></div><div><span>Paredes</span><b>${fmtNum(pa)} m²</b></div>` : ''}
+        <div><span>Gasto</span><b>${fmtBRL(x.gasto)}</b></div>
+        <div><span>${x.faltando ? 'A comprar' : 'Previsto'}</span><b${x.faltando ? ' style="color:var(--warn)"' : ''}>${fmtBRL(x.faltando ? x.previsto - x.gasto : x.previsto)}</b></div></div>
+      <button class="iconbtn" onclick="editarAmbiente('${a.id}')" aria-label="Editar ambiente" title="Editar ambiente">✎</button></div>
+    ${a.obs ? `<div class="small muted" style="margin-top:9px">${esc(a.obs)}</div>` : ''}
+    ${ap > 0 ? '' : '<div class="hint">Toque em ✎ e informe largura, comprimento e pé-direito para o app calcular as áreas.</div>'}
+    <div style="height:10px"></div>
+    <button class="btn gh wide sm" onclick="abrirClaude('${a.id}')">✨ Perguntar ao Claude</button>`;
+  const tabs = [['arquivos', '▣ Arquivos', x.arquivos], ['materiais', '▤ Materiais', x.mats], ['tarefas', '✓ Tarefas', x.tarefas]];
+  $('#ambTabs').innerHTML = tabs.map(([k, t, n]) =>
+    `<button class="chip ${ui.ambTab === k ? 'on' : ''}" onclick="ui.ambTab='${k}';render()">${t}${n ? ' · ' + n : ''}</button>`).join('');
+  const box = $('#ambConteudo');
+  if (ui.ambTab === 'arquivos'){
+    const cats = ['all'].concat(Object.keys(CATS).filter(k => a.arquivos.some(f => f.cat === k)));
+    box.innerHTML = (cats.length > 2 ? `<div class="chipwrap"><div class="chips">${cats.map(k =>
+        `<button class="chip ${ui.filtroCat === k ? 'on' : ''}" onclick="setFiltroCat('${k}')">${k === 'all' ? 'Tudo' : CATS[k]}</button>`).join('')}</div></div>` : '')
+      + `<div class="grid" id="gridAmbArq"></div><div id="vazioAmbArq"></div><div style="height:12px"></div>
+      <button class="btn wide gh" onclick="pedirArquivos('${a.id}')">＋ Adicionar planta ou foto</button>`;
+    if (cats.length <= 2) ui.filtroCat = 'all';
+    pintarArquivos(a.arquivos.filter(f => ui.filtroCat === 'all' || f.cat === ui.filtroCat), $('#gridAmbArq'), $('#vazioAmbArq'), a.id);
+  } else if (ui.ambTab === 'materiais'){
+    box.innerHTML = listaMateriaisHTML(a.materiais.map(m => ({...m, ambId:a.id})), false)
+      + `<button class="btn wide gh" onclick="editarMaterial(null,'${a.id}')">＋ Novo material</button>`;
+  } else {
+    const ts = a.tarefas.map(t => ({...t, ambId:a.id, amb:a.nome})).filter(t => ui.verFeitas || !t.feita).sort(ordenaTarefa);
+    box.innerHTML = (ts.length ? '<div class="list">' + ts.map(t => linhaTarefa(t, false)).join('') + '</div>'
+      : vazio('✓','Sem tarefas','Anote o que falta fazer neste ambiente.'))
+      + `<button class="btn wide gh" onclick="editarTarefa(null,'${a.id}')">＋ Nova tarefa</button>`;
+  }
+}
+
+/* ============================ MATERIAIS ============================ */
+function chipsAmbiente(alvo, valor, fn){
+  const u = U();
+  alvo.innerHTML = [`<button class="chip ${valor === 'all' ? 'on' : ''}" onclick="${fn}('all')">Todos</button>`]
+    .concat(u.ambientes.map(a => `<button class="chip ${valor === a.id ? 'on' : ''}" onclick="${fn}('${a.id}')">${esc(a.nome)}</button>`)).join('');
+}
+window.setFiltroAmb = v => { ui.filtroAmb = v; render(); };
+window.setFiltroCat = v => { ui.filtroCat = v; render(); };
+function materiaisFiltrados(){
+  const u = U(), out = [];
+  u.ambientes.forEach(a => { if (ui.filtroAmb === 'all' || ui.filtroAmb === a.id)
+    a.materiais.forEach(m => out.push({...m, ambId:a.id, amb:a.nome})); });
+  return out;
+}
+function listaMateriaisHTML(mats, mostraAmb){
+  if (!mats.length) return vazio('▤','Nenhum material','Cadastre os materiais com quantidade, preço e recibo.');
+  return '<div class="list">' + mats.map(m => {
+    const st = statusMat(m), est = estoqueMat(m), falta = faltaMat(m);
+    const recibos = (m.recibos || []).length;
+    return `<div class="item" role="button" tabindex="0" onclick="editarMaterial('${m.id}','${m.ambId}')">
+      <div class="av">${recibos ? '🧾' : '▤'}</div>
+      <div class="grow"><div class="l2"><b>${esc(m.nome)}</b></div>
+        <div class="tiny muted ell">${mostraAmb ? esc(m.amb) + ' · ' : ''}estoque ${fmtNum(est)} ${esc(m.unidade || 'un')}${falta > 0 ? ` · faltam ${fmtNum(falta)}` : ''}${recibos ? ` · ${pl(recibos,'recibo')}` : ''}</div>
+        <span class="tag ${st.c}" style="margin-top:4px">${st.t}</span></div>
+      <div class="right" style="flex:0 0 auto"><div class="money small" style="white-space:nowrap">${fmtBRL(custoMat(m))}</div>
+        <div class="tiny muted" style="white-space:nowrap">${falta > 0 ? 'falta ' + fmtBRL(falta * parseNum(m.precoUnit)) : fmtNum(parseNum(m.precoUnit)) + '/' + esc(m.unidade || 'un')}</div></div>
+      <div class="muted">›</div></div>`;
+  }).join('') + '</div>';
+}
+function renderMateriais(){
+  chipsAmbiente($('#filtroMat'), ui.filtroAmb, 'setFiltroAmb');
+  const todos = materiaisFiltrados();
+  let gasto = 0, prev = 0, falta = 0, faltaR = 0;
+  todos.forEach(m => { gasto += custoMat(m); prev += custoPrev(m);
+    if (faltaMat(m) > 0){ falta++; faltaR += faltaMat(m) * parseNum(m.precoUnit); } });
+  $('#resumoMat').innerHTML = `<div class="mini">
+    <div><span>Itens</span><b>${todos.length}</b></div>
+    <div><span>Comprado</span><b>${fmtBRL(gasto)}</b></div>
+    <div><span>Previsto</span><b>${fmtBRL(prev)}</b></div>
+    <div><span>A comprar</span><b>${fmtBRL(faltaR)}</b></div></div>
+    ${falta ? `<div style="height:12px"></div><div class="row" style="gap:8px">
+      <button class="btn sm ${ui.soFalta ? '' : 'gh'}" style="flex:1" onclick="ui.soFalta=!ui.soFalta;render()">🛒 ${ui.soFalta ? 'Ver todos os materiais' : `Lista de compras (${falta})`}</button>
+      ${ui.soFalta ? `<button class="btn sm gh" onclick="copiarCompras()">Copiar</button>` : ''}</div>` : ''}`;
+  const mats = ui.soFalta ? todos.filter(m => faltaMat(m) > 0) : todos;
+  $('#listaMat').innerHTML = mats.length ? listaMateriaisHTML(mats, ui.filtroAmb === 'all')
+    : vazio('🛒','Nada a comprar','Todos os materiais deste filtro já foram comprados.');
+}
+window.copiarCompras = async () => {
+  const mats = materiaisFiltrados().filter(m => faltaMat(m) > 0);
+  if (!mats.length) return toast('Nada a comprar.');
+  let tot = 0;
+  const linhas = mats.map(m => { const q = faltaMat(m), v = q * parseNum(m.precoUnit); tot += v;
+    return `• ${m.nome} — ${fmtNum(q)} ${m.unidade || 'un'}${m.fornecedor ? ` (${m.fornecedor})` : ''} — ${fmtBRL(v)} [${m.amb}]`; });
+  const txt = `Lista de compras — ${U().nome} (${fmtData(hoje())})\n\n${linhas.join('\n')}\n\nTotal estimado: ${fmtBRL(tot)}`;
+  toast(await copiar(txt) ? '🛒 Lista copiada' : 'Não consegui copiar');
+};
+
+/* ============================ TAREFAS ============================ */
+const PRIO = {alta:{t:'Alta', c:'bad', o:0}, normal:{t:'Normal', c:'', o:1}, baixa:{t:'Baixa', c:'', o:2}};
+function ordenaTarefa(a, b){
+  const pa = (PRIO[a.prioridade] || PRIO.normal).o, pb = (PRIO[b.prioridade] || PRIO.normal).o;
+  const da = a.prazo || '9999-12-31', dbz = b.prazo || '9999-12-31';
+  if (da !== dbz) return da < dbz ? -1 : 1;
+  return pa - pb;
+}
+function linhaTarefa(t, mostraAmb){
+  const d = diasAte(t.prazo);
+  let tag = '';
+  if (t.prazo){
+    if (d < 0) tag = `<span class="tag bad">Venceu ${fmtData(t.prazo)}</span>`;
+    else if (d === 0) tag = `<span class="tag warn">Hoje</span>`;
+    else if (d <= 3) tag = `<span class="tag warn">Em ${d} dia${d>1?'s':''}</span>`;
+    else tag = `<span class="tag">${fmtData(t.prazo)}</span>`;
+  }
+  if (t.prioridade === 'alta') tag += ' <span class="tag bad">Alta</span>';
+  return `<div class="item ${t.feita ? 'done' : ''}">
+    <div class="tapzone" onclick="event.stopPropagation();alternarTarefa('${t.ambId}','${t.id}')" role="checkbox" aria-checked="${!!t.feita}" tabindex="0" aria-label="Concluir ${esc(t.titulo)}">
+      <div class="check ${t.feita ? 'on' : ''}">✓</div></div>
+    <div class="grow" role="button" tabindex="0" onclick="editarTarefa('${t.id}','${t.ambId}')">
+      <div class="l2 tt"><b>${esc(t.titulo)}</b></div>
+      <div class="tiny muted">${mostraAmb ? esc(t.amb) : ''}</div>${tag ? `<div style="margin-top:4px">${tag}</div>` : ''}</div>
+    <div class="muted">›</div></div>`;
+}
+function renderTarefas(){
+  chipsAmbiente($('#filtroTar'), ui.filtroAmb, 'setFiltroAmb');
+  const u = U(); const arr = [];
+  u.ambientes.forEach(a => { if (ui.filtroAmb === 'all' || ui.filtroAmb === a.id)
+    a.tarefas.forEach(t => arr.push({...t, ambId:a.id, amb:a.nome})); });
+  const abertas = arr.filter(t => !t.feita).length, feitas = arr.length - abertas;
+  $('#resumoTar').innerHTML = `<b>${abertas}</b> aberta${abertas!==1?'s':''} · ${feitas} concluída${feitas!==1?'s':''}`;
+  $('#toggleFeitas').textContent = ui.verFeitas ? 'Ocultar feitas' : 'Mostrar feitas';
+  const vis = arr.filter(t => ui.verFeitas || !t.feita).sort(ordenaTarefa);
+  $('#listaTar').innerHTML = vis.length ? '<div class="list">' + vis.map(t => linhaTarefa(t, ui.filtroAmb === 'all')).join('') + '</div>'
+    : vazio('✓', arr.length ? 'Nada em aberto' : 'Sem tarefas', arr.length ? 'Toque em “Mostrar feitas” para rever o que já foi concluído.' : 'Anote o que falta fazer na obra.');
+}
+window.alternarTarefa = (ambId, tid) => {
+  const a = A(ambId); if (!a) return;
+  const t = a.tarefas.find(x => x.id === tid); if (!t) return;
+  t.feita = !t.feita; t.feitaEm = t.feita ? hoje() : null;
+  salvar(); render();
+  if (t.feita) toast('✓ ' + t.titulo);
+};
+
+/* ============================ ARQUIVOS ============================ */
+function renderArquivos(){
+  chipsAmbiente($('#filtroArq'), ui.filtroAmb, 'setFiltroAmb');
+  $('#filtroCat').innerHTML = [`<button class="chip ${ui.filtroCat === 'all' ? 'on' : ''}" onclick="setFiltroCat('all')">Tudo</button>`]
+    .concat(Object.entries(CATS).map(([k, v]) => `<button class="chip ${ui.filtroCat === k ? 'on' : ''}" onclick="setFiltroCat('${k}')">${v}</button>`)).join('');
+  const u = U(), arr = [];
+  u.ambientes.forEach(a => { if (ui.filtroAmb === 'all' || ui.filtroAmb === a.id)
+    a.arquivos.forEach(f => { if (ui.filtroCat === 'all' || f.cat === ui.filtroCat) arr.push({...f, ambId:a.id, amb:a.nome}); }); });
+  const tam = arr.reduce((s, f) => s + (f.tamanho || 0), 0);
+  $('#resumoArq').innerHTML = `<b>${arr.length}</b> arquivo${arr.length!==1?'s':''}${tam ? ' · ' + fmtBytes(tam) : ''}`;
+  pintarArquivos(arr, $('#gridArq'), $('#vazioArq'), null);
+}
+async function pintarArquivos(arr, grid, vazioBox, ambId){
+  if (!arr.length){
+    grid.innerHTML = '';
+    vazioBox.innerHTML = vazio('▣','Nenhum arquivo','Guarde aqui plantas, fotos da obra e recibos.',
+      ambId ? null : 'addArq', '＋ Adicionar');
+    if (ambId) vazioBox.innerHTML = `<div class="card empty"><div class="big">▣</div><b>Nenhum arquivo</b>
+      <p>Guarde aqui plantas, fotos da obra e recibos.</p><button class="btn" onclick="pedirArquivos('${ambId}')">＋ Adicionar</button></div>`;
+    return;
+  }
+  vazioBox.innerHTML = '';
+  arr.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+  grid.innerHTML = arr.map(f => `<div class="thumb" role="button" tabindex="0" data-fid="${f.id}" data-amb="${f.ambId || ambId}" aria-label="${esc(f.nome)}">
+      <div class="doc" data-ph="${f.id}">${icoCat(f.cat)}</div>
+      <span class="kind">${esc((CATS[f.cat] || CATS.outro).slice(3))}</span>
+      <span class="cap">${esc(f.nome)}</span></div>`).join('');
+  grid.querySelectorAll('[data-fid]').forEach(n => n.addEventListener('click', () => abrirArquivo(n.dataset.fid, n.dataset.amb)));
+  for (const f of arr){
+    if (!/^image\//.test(f.tipo || '')) continue;
+    try {
+      const rec = await dbGet('files', f.id); if (!rec) continue;
+      const b = rec.thumb || rec.blob; if (!b) continue;
+      const ph = grid.querySelector(`[data-ph="${f.id}"]`); if (!ph) continue;
+      const img = new Image(); img.alt = f.nome || ''; img.loading = 'lazy';
+      img.src = urlDe(f.id + ':t', b); ph.replaceWith(img);
+    } catch(e){ console.warn(e); }
+  }
+}
+</script>
+<script>
+"use strict";
+/* ============================ MODAL ============================ */
+let ovAtual = null;
+function modal({titulo, corpo, botoes, aoAbrir}){
+  $('#ovTitle').textContent = titulo;
+  $('#ovBody').innerHTML = corpo;
+  $('#ovFoot').innerHTML = '';
+  (botoes || []).forEach(b => {
+    const el = document.createElement('button');
+    el.className = 'btn ' + (b.cls || '');
+    el.textContent = b.txt;
+    el.onclick = b.fn;
+    $('#ovFoot').appendChild(el);
+  });
+  $('#ov').classList.add('on');
+  document.body.style.overflow = 'hidden';
+  ovAtual = true;
+  if (aoAbrir) setTimeout(aoAbrir, 30);
+}
+function fecharModal(){ $('#ov').classList.remove('on'); document.body.style.overflow = ''; ovAtual = null; }
+$('#ovClose').onclick = fecharModal;
+$('#ov').addEventListener('click', e => { if (e.target.id === 'ov') fecharModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' '){
+    const alvo = e.target.closest('[role="button"],[role="checkbox"]');
+    if (alvo && !alvo.matches('button,a,input,select,textarea')){ e.preventDefault(); alvo.click(); return; }
+  }
+  if (e.key !== 'Escape') return;
+  if ($('#viewer').classList.contains('on')) return fecharViewer();
+  if (ovAtual) fecharModal();
+});
+function confirmar(titulo, texto, aoConfirmar, txtBtn){
+  modal({titulo, corpo:`<p class="small" style="margin:14px 0">${esc(texto)}</p>`,
+    botoes:[{txt:'Cancelar', cls:'gh', fn:fecharModal}, {txt:txtBtn || 'Excluir', cls:'dz', fn:() => { fecharModal(); aoConfirmar(); }}]});
+}
+const val = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
+
+/* ============================ UNIDADES ============================ */
+window.editarUnidade = id => {
+  const u = id ? S.unidades.find(x => x.id === id) : null;
+  modal({
+    titulo: u ? 'Editar unidade' : 'Nova unidade',
+    corpo: `<label for="uNome">Nome da unidade *</label><input type="text" id="uNome" value="${esc(u ? u.nome : '')}" placeholder="Ex.: AP 103A — Porto das Dunas">
+      <div class="err" id="uErr">Dê um nome à unidade.</div>
+      <label for="uEnd">Endereço</label><input type="text" id="uEnd" value="${esc(u ? u.endereco : '')}" placeholder="Opcional">
+      <label for="uOrc">Orçamento total (R$)</label><input type="text" inputmode="decimal" id="uOrc" value="${u && parseNum(u.orcamento) ? fmtNum(parseNum(u.orcamento)) : ''}" placeholder="Ex.: 120.000,00">
+      <div class="hint">Use vírgula para centavos. Deixe em branco se ainda não houver teto definido.</div>`,
+    botoes: [
+      ...(u && S.unidades.length > 1 ? [{txt:'Excluir', cls:'dz', fn:() => confirmar('Excluir unidade',
+        `Isso apaga “${u.nome}” com todos os ambientes, materiais, tarefas e arquivos. Não dá para desfazer.`, () => excluirUnidade(u.id))}] : []),
+      {txt:'Cancelar', cls:'gh', fn:fecharModal},
+      {txt:'Salvar', fn:() => {
+        const nome = val('uNome');
+        if (!nome){ $('#uErr').classList.add('on'); $('#uNome').focus(); return; }
+        if (u){ u.nome = nome; u.endereco = val('uEnd'); u.orcamento = parseNum(val('uOrc')); }
+        else {
+          const n = {id:uid(), nome, endereco:val('uEnd'), orcamento:parseNum(val('uOrc')), criadoEm:hoje(), ambientes:[]};
+          S.unidades.push(n); S.unidadeAtual = n.id; ui.filtroAmb = 'all';
+        }
+        salvar(true); fecharModal(); irPara('painel'); toast('Unidade salva');
+      }}],
+    aoAbrir: () => $('#uNome').focus()
+  });
+};
+async function excluirUnidade(id){
+  const u = S.unidades.find(x => x.id === id); if (!u) return;
+  for (const a of u.ambientes) for (const f of a.arquivos) await apagarArquivo(f.id);
+  S.unidades = S.unidades.filter(x => x.id !== id);
+  if (S.unidadeAtual === id) S.unidadeAtual = S.unidades[0] ? S.unidades[0].id : null;
+  salvar(true); fecharModal(); irPara('painel'); toast('Unidade excluída');
+}
+$('#btnUnits').onclick = () => {
+  modal({
+    titulo:'Unidades',
+    corpo:'<div class="list" style="margin-top:12px">' + S.unidades.map(u => {
+      const n = u.ambientes.length;
+      return `<div class="item" role="button" tabindex="0" onclick="trocarUnidade('${u.id}')">
+        <div class="av">${u.id === S.unidadeAtual ? '✓' : '🏠'}</div>
+        <div class="grow"><div class="ell"><b>${esc(u.nome)}</b></div>
+        <div class="tiny muted">${n} ambiente${n!==1?'s':''}${u.endereco ? ' · ' + esc(u.endereco) : ''}</div></div>
+        <button class="iconbtn" onclick="event.stopPropagation();editarUnidade('${u.id}')" aria-label="Editar">✎</button></div>`;
+    }).join('') + '</div>',
+    botoes:[{txt:'Fechar', cls:'gh', fn:fecharModal}, {txt:'＋ Nova unidade', fn:() => editarUnidade(null)}]
+  });
+};
+window.trocarUnidade = id => { S.unidadeAtual = id; ui.filtroAmb = 'all'; ui.amb = null; salvar(); fecharModal(); irPara('painel'); };
+
+/* ============================ AMBIENTES ============================ */
+window.editarAmbiente = id => {
+  const a = id ? A(id) : null;
+  modal({
+    titulo: a ? 'Editar ambiente' : 'Novo ambiente',
+    corpo: `<label for="aNome">Nome do ambiente *</label><input type="text" id="aNome" value="${esc(a ? a.nome : '')}" placeholder="Ex.: Banheiro Social">
+      <div class="err" id="aErr">Dê um nome ao ambiente.</div>
+      <div class="f2"><div><label for="aL">Largura (m)</label><input type="text" inputmode="decimal" id="aL" value="${a && parseNum(a.largura) ? fmtNum(parseNum(a.largura)) : ''}" placeholder="2,40"></div>
+      <div><label for="aC">Comprimento (m)</label><input type="text" inputmode="decimal" id="aC" value="${a && parseNum(a.comprimento) ? fmtNum(parseNum(a.comprimento)) : ''}" placeholder="3,10"></div></div>
+      <label for="aP">Pé-direito (m)</label><input type="text" inputmode="decimal" id="aP" value="${a && parseNum(a.peDireito) ? fmtNum(parseNum(a.peDireito)) : ''}" placeholder="2,70">
+      <div class="hint">Com as medidas o app calcula sozinho a área de piso e de paredes.</div>
+      <label for="aObs">Observações</label><textarea id="aObs" placeholder="Ex.: porcelanato 60x60, bancada em quartzo…">${esc(a ? a.obs : '')}</textarea>`,
+    botoes: [
+      ...(a ? [{txt:'Excluir', cls:'dz', fn:() => confirmar('Excluir ambiente',
+        `“${a.nome}” será apagado com seus ${a.arquivos.length} arquivos, ${a.materiais.length} materiais e ${a.tarefas.length} tarefas.`,
+        () => excluirAmbiente(a.id))}] : []),
+      {txt:'Cancelar', cls:'gh', fn:fecharModal},
+      {txt:'Salvar', fn:() => {
+        const nome = val('aNome');
+        if (!nome){ $('#aErr').classList.add('on'); $('#aNome').focus(); return; }
+        const d = {nome, largura:parseNum(val('aL')), comprimento:parseNum(val('aC')), peDireito:parseNum(val('aP')), obs:val('aObs')};
+        if (a) Object.assign(a, d);
+        else { const n = Object.assign(novoAmbiente(nome), d); U().ambientes.push(n); ui.amb = n.id; }
+        salvar(true); fecharModal(); a ? render() : irPara('ambiente', {amb:ui.amb}); toast('Ambiente salvo');
+      }}],
+    aoAbrir: () => $('#aNome').focus()
+  });
+};
+async function excluirAmbiente(id){
+  const a = A(id); if (!a) return;
+  for (const f of a.arquivos) await apagarArquivo(f.id);
+  U().ambientes = U().ambientes.filter(x => x.id !== id);
+  if (ui.filtroAmb === id) ui.filtroAmb = 'all';
+  salvar(true); fecharModal(); irPara('ambientes'); toast('Ambiente excluído');
+}
+
+/* ============================ MATERIAIS ============================ */
+const UNIDADES_MED = ['un','m²','m','m³','kg','saco','caixa','L','pç','barra','rolo'];
+window.editarMaterial = (mid, ambId) => {
+  const u = U();
+  if (!u.ambientes.length) return toast('Crie um ambiente antes.');
+  const a = A(ambId) || u.ambientes[0];
+  const m = mid ? a.materiais.find(x => x.id === mid) : null;
+  const opAmb = u.ambientes.map(x => `<option value="${x.id}" ${x.id === a.id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
+  const opUn = UNIDADES_MED.map(x => `<option value="${x}" ${m && m.unidade === x ? 'selected' : ''}>${x}</option>`).join('');
+  modal({
+    titulo: m ? 'Material' : 'Novo material',
+    corpo: `<label for="mNome">Material *</label><input type="text" id="mNome" value="${esc(m ? m.nome : '')}" placeholder="Ex.: Porcelanato 60x60 Portobello">
+      <div class="err" id="mErr">Informe o nome do material.</div>
+      <label for="mAmb">Ambiente</label><select id="mAmb">${opAmb}</select>
+      <div class="f2"><div><label for="mUn">Unidade</label><select id="mUn">${opUn}</select></div>
+        <div><label for="mPreco">Preço unitário (R$)</label><input type="text" inputmode="decimal" id="mPreco" value="${m && parseNum(m.precoUnit) ? fmtNum(parseNum(m.precoUnit)) : ''}" placeholder="89,90"></div></div>
+      <div class="f2"><div><label for="mPrev">Qtd. necessária</label><input type="text" inputmode="decimal" id="mPrev" value="${m && parseNum(m.qtdPrevista) ? fmtNum(parseNum(m.qtdPrevista)) : ''}" placeholder="12"></div>
+        <div><label for="mComp">Qtd. comprada</label><input type="text" inputmode="decimal" id="mComp" value="${m && parseNum(m.qtdComprada) ? fmtNum(parseNum(m.qtdComprada)) : ''}" placeholder="12"></div></div>
+      <label for="mUsa">Qtd. já aplicada na obra</label><input type="text" inputmode="decimal" id="mUsa" value="${m && parseNum(m.qtdUsada) ? fmtNum(parseNum(m.qtdUsada)) : ''}" placeholder="0">
+      <div class="hint" id="mCalc"></div>
+      <label for="mForn">Fornecedor</label><input type="text" id="mForn" value="${esc(m ? m.fornecedor : '')}" placeholder="Opcional">
+      <label for="mObs">Observações</label><textarea id="mObs" placeholder="Cor, referência, prazo de entrega…">${esc(m ? m.obs : '')}</textarea>
+      ${m ? `<label>Recibos e notas</label><div class="grid" id="mRec"></div><div id="mConf"></div>
+        <div style="height:8px"></div><button class="btn gh wide sm" onclick="pedirArquivos('${a.id}','recibo','${m.id}')">🧾 Anexar recibo</button>` :
+        `<div class="hint" style="margin-top:14px">Salve o material para poder anexar os recibos.</div>`}`,
+    botoes: [
+      ...(m ? [{txt:'Excluir', cls:'dz', fn:() => confirmar('Excluir material', `“${m.nome}” será removido.`, () => excluirMaterial(a.id, m.id))}] : []),
+      {txt:'Cancelar', cls:'gh', fn:fecharModal},
+      {txt:'Salvar', fn:() => {
+        const nome = val('mNome');
+        if (!nome){ $('#mErr').classList.add('on'); $('#mNome').focus(); return; }
+        const destino = A($('#mAmb').value) || a;
+        const d = {nome, unidade:$('#mUn').value, precoUnit:parseNum(val('mPreco')), qtdPrevista:parseNum(val('mPrev')),
+          qtdComprada:parseNum(val('mComp')), qtdUsada:parseNum(val('mUsa')), fornecedor:val('mForn'), obs:val('mObs')};
+        if (m){
+          Object.assign(m, d);
+          if (destino.id !== a.id){ a.materiais = a.materiais.filter(x => x.id !== m.id); destino.materiais.push(m);
+            a.arquivos.filter(f => f.matId === m.id).forEach(f => { a.arquivos = a.arquivos.filter(y => y.id !== f.id); destino.arquivos.push(f); }); }
+        } else destino.materiais.push({id:uid(), recibos:[], criadoEm:hoje(), ...d});
+        salvar(true); fecharModal(); render(); toast('Material salvo');
+      }}],
+    aoAbrir: () => {
+      const calc = () => {
+        const p = parseNum(val('mPreco')), prev = parseNum(val('mPrev')), comp = parseNum(val('mComp')), usa = parseNum(val('mUsa'));
+        $('#mCalc').innerHTML = `Estoque: <b>${fmtNum(comp - usa)}</b> · Falta comprar: <b>${fmtNum(Math.max(0, prev - comp))}</b>
+          · Gasto: <b>${fmtBRL(comp * p)}</b> · Previsto: <b>${fmtBRL(Math.max(prev, comp) * p)}</b>`;
+      };
+      ['mPreco','mPrev','mComp','mUsa'].forEach(i => { const e = document.getElementById(i); if (e) e.addEventListener('input', calc); });
+      calc();
+      if (m) pintarRecibos(a.id, m);
+      const n = $('#mNome'); if (!mid && n) n.focus();
+    }
+  });
+};
+async function pintarRecibos(ambId, m){
+  const box = $('#mRec'); if (!box) return;
+  const a = A(ambId); if (!a) return;
+  const recs = a.arquivos.filter(f => f.matId === m.id);
+  const conf = $('#mConf');
+  if (!recs.length){
+    box.innerHTML = '<div class="hint" style="grid-column:1/-1">Nenhum recibo anexado.</div>';
+    if (conf) conf.innerHTML = ''; return;
+  }
+  const soma = recs.reduce((t, f) => t + parseNum(f.valor), 0);
+  if (conf){
+    const gasto = custoMat(m), dif = Math.abs(soma - gasto);
+    conf.innerHTML = soma > 0
+      ? `<div class="hint">Recibos somam <b>${fmtBRL(soma)}</b> · lançado no material <b>${fmtBRL(gasto)}</b>${dif > 0.5 ? ` <span class="tag warn">diferença de ${fmtBRL(dif)}</span>` : ' <span class="tag ok">confere</span>'}</div>`
+      : '<div class="hint">Sem valor informado nos recibos.</div>';
+  }
+  await pintarArquivos(recs.map(f => ({...f, ambId})), box, document.createElement('div'), ambId);
+}
+function excluirMaterial(ambId, mid){
+  const a = A(ambId); if (!a) return;
+  a.arquivos.filter(f => f.matId === mid).forEach(f => { apagarArquivo(f.id); });
+  a.arquivos = a.arquivos.filter(f => f.matId !== mid);
+  a.materiais = a.materiais.filter(x => x.id !== mid);
+  salvar(true); fecharModal(); render(); toast('Material excluído');
+}
+
+/* ============================ TAREFAS ============================ */
+window.editarTarefa = (tid, ambId) => {
+  const u = U();
+  if (!u.ambientes.length) return toast('Crie um ambiente antes.');
+  const a = A(ambId) || u.ambientes[0];
+  const t = tid ? a.tarefas.find(x => x.id === tid) : null;
+  const opAmb = u.ambientes.map(x => `<option value="${x.id}" ${x.id === a.id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
+  const opPr = Object.entries(PRIO).map(([k, v]) => `<option value="${k}" ${(t ? t.prioridade : 'normal') === k ? 'selected' : ''}>${v.t}</option>`).join('');
+  modal({
+    titulo: t ? 'Tarefa' : 'Nova tarefa',
+    corpo: `<label for="tTit">O que fazer *</label><input type="text" id="tTit" value="${esc(t ? t.titulo : '')}" placeholder="Ex.: Assentar porcelanato do piso">
+      <div class="err" id="tErr">Descreva a tarefa.</div>
+      <label for="tAmb">Ambiente</label><select id="tAmb">${opAmb}</select>
+      <div class="f2"><div><label for="tPrazo">Prazo</label><input type="date" id="tPrazo" value="${t && t.prazo ? t.prazo : ''}"></div>
+      <div><label for="tPrio">Prioridade</label><select id="tPrio">${opPr}</select></div></div>
+      <label for="tObs">Observações</label><textarea id="tObs" placeholder="Responsável, detalhe do serviço…">${esc(t ? t.obs : '')}</textarea>`,
+    botoes: [
+      ...(t ? [{txt:'Excluir', cls:'dz', fn:() => confirmar('Excluir tarefa', `“${t.titulo}” será removida.`, () => {
+        a.tarefas = a.tarefas.filter(x => x.id !== t.id); salvar(true); fecharModal(); render(); toast('Tarefa excluída'); })}] : []),
+      {txt:'Cancelar', cls:'gh', fn:fecharModal},
+      {txt:'Salvar', fn:() => {
+        const titulo = val('tTit');
+        if (!titulo){ $('#tErr').classList.add('on'); $('#tTit').focus(); return; }
+        const destino = A($('#tAmb').value) || a;
+        const d = {titulo, prazo:val('tPrazo'), prioridade:$('#tPrio').value, obs:val('tObs')};
+        if (t){ Object.assign(t, d); if (destino.id !== a.id){ a.tarefas = a.tarefas.filter(x => x.id !== t.id); destino.tarefas.push(t); } }
+        else destino.tarefas.push({id:uid(), feita:false, criadoEm:hoje(), ...d});
+        salvar(true); fecharModal(); render(); toast('Tarefa salva');
+      }}],
+    aoAbrir: () => { const n = $('#tTit'); if (!tid && n) n.focus(); }
+  });
+};
+</script>
+<script>
+"use strict";
+/* ============================ ANEXAR ARQUIVOS ============================ */
+let pend = null;
+window.pedirArquivos = (ambId, cat, matId) => {
+  const u = U();
+  if (!u.ambientes.length) return toast('Crie um ambiente antes.');
+  if (cat){ pend = {ambId, cat, matId}; return dispararSeletor(cat); }
+  const alvo = ambId || (ui.filtroAmb !== 'all' ? ui.filtroAmb : (ui.amb || u.ambientes[0].id));
+  const opAmb = u.ambientes.map(x => `<option value="${x.id}" ${x.id === alvo ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
+  modal({
+    titulo:'Adicionar arquivo',
+    corpo:`<label for="fAmb">Ambiente</label><select id="fAmb">${opAmb}</select>
+      <label>Tipo de arquivo</label>
+      <div class="chips" id="fCats" style="padding-bottom:2px">${Object.entries(CATS).map(([k, v], i) =>
+        `<button type="button" class="chip ${i === 0 ? 'on' : ''}" data-c="${k}">${v}</button>`).join('')}</div>
+      <div class="hint">Fotos são reduzidas automaticamente para ocupar pouco espaço. Plantas em PDF são guardadas como estão.</div>`,
+    botoes:[{txt:'Cancelar', cls:'gh', fn:fecharModal}, {txt:'Escolher arquivos', fn:() => {
+      const c = $('#fCats .chip.on');
+      pend = {ambId:$('#fAmb').value, cat:c ? c.dataset.c : 'foto', matId:null};
+      fecharModal(); dispararSeletor(pend.cat);
+    }}],
+    aoAbrir: () => $('#fCats').addEventListener('click', e => {
+      const b = e.target.closest('.chip'); if (!b) return;
+      $$('#fCats .chip').forEach(x => x.classList.remove('on')); b.classList.add('on');
+    })
+  });
+};
+function dispararSeletor(cat){
+  const inp = $('#filePick');
+  inp.accept = (cat === 'planta' || cat === 'orcamento') ? 'image/*,application/pdf' : 'image/*,application/pdf';
+  inp.value = '';
+  inp.click();
+}
+$('#filePick').addEventListener('change', async e => {
+  const files = Array.from(e.target.files || []);
+  if (!files.length || !pend) return;
+  const a = A(pend.ambId); if (!a){ pend = null; return; }
+  let ok = 0, erro = 0; const novos = [];
+  for (let i = 0; i < files.length; i++){
+    const f = files[i];
+    toast(`Guardando ${i + 1} de ${files.length}…`, 60000);
+    try {
+      if (f.size > 40 * 1024 * 1024 && !/^image\//.test(f.type)){ erro++; continue; }
+      const meta = await guardarArquivo(f, pend.cat, pend.matId);
+      a.arquivos.push(meta); novos.push(meta);
+      if (pend.matId){ const m = a.materiais.find(x => x.id === pend.matId); if (m){ m.recibos = m.recibos || []; m.recibos.push(meta.id); } }
+      ok++;
+    } catch(err){ console.error(err); erro++; }
+  }
+  await salvar(true);
+  const cat = pend.cat, mid = pend.matId, amb = pend.ambId; pend = null; e.target.value = '';
+  toast(ok ? `${pl(ok,'arquivo')} guardado${ok > 1 ? 's' : ''}${erro ? ` · ${erro} não deu certo` : ''}`
+    : 'Não consegui guardar. O arquivo pode ser grande demais ou o aparelho estar sem espaço.', 4200);
+  render();
+  if (ok && cat === 'recibo') return perguntarValorRecibo(amb, novos, mid);
+  if (mid){ const m = A(amb).materiais.find(x => x.id === mid); if (m && ovAtual) await pintarRecibos(amb, m); }
+});
+
+function perguntarValorRecibo(ambId, metas, matId){
+  const alvo = metas[metas.length - 1];
+  modal({
+    titulo:'Valor do recibo',
+    corpo:`<p class="small muted" style="margin:12px 0 0">${esc(alvo.nome)}</p>
+      <label for="rVal">Valor total do recibo (R$)</label>
+      <input type="text" inputmode="decimal" id="rVal" placeholder="Ex.: 1.348,50">
+      <div class="hint">Opcional. Serve para conferir se o que você lançou no material bate com a nota.</div>`,
+    botoes:[{txt:'Pular', cls:'gh', fn:() => { fecharModal(); voltarAoMaterial(ambId, matId); }},
+      {txt:'Salvar', fn:() => {
+        const v = parseNum(val('rVal'));
+        const a = A(ambId);
+        if (a) metas.forEach(mt => { const f = a.arquivos.find(x => x.id === mt.id); if (f) f.valor = v / metas.length; });
+        salvar(true); fecharModal(); render(); voltarAoMaterial(ambId, matId);
+      }}],
+    aoAbrir: () => $('#rVal').focus()
+  });
+}
+function voltarAoMaterial(ambId, matId){ if (matId) setTimeout(() => editarMaterial(matId, ambId), 130); }
+
+/* ============================ VISUALIZADOR ============================ */
+let vAtual = null;
+async function abrirArquivo(fid, ambId){
+  const a = A(ambId); if (!a) return;
+  const meta = a.arquivos.find(f => f.id === fid); if (!meta) return;
+  const rec = await dbGet('files', fid);
+  if (!rec){ toast('Arquivo não encontrado no aparelho.'); return; }
+  vAtual = {fid, ambId, meta, url:urlDe(fid, rec.blob)};
+  $('#vName').textContent = meta.nome + ' · ' + fmtBytes(meta.tamanho) + ' · ' + fmtData(meta.data) + (parseNum(meta.valor) ? ' · ' + fmtBRL(parseNum(meta.valor)) : '');
+  $('#vVal').style.display = meta.cat === 'recibo' ? 'inline-flex' : 'none';
+  const body = $('#vBody');
+  body.innerHTML = /^image\//.test(meta.tipo)
+    ? `<img src="${vAtual.url}" alt="${esc(meta.nome)}">`
+    : `<div style="text-align:center;color:#fff;padding:30px"><div style="font-size:60px">${icoCat(meta.cat)}</div>
+       <p class="small">${esc(meta.nome)}</p><p class="tiny" style="opacity:.7">Toque em “Abrir em nova aba” para visualizar.</p></div>`;
+  $('#viewer').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function fecharViewer(){ $('#viewer').classList.remove('on'); document.body.style.overflow = ovAtual ? 'hidden' : ''; vAtual = null; }
+$('#vClose').onclick = fecharViewer;
+$('#vOpen').onclick = () => { if (vAtual) window.open(vAtual.url, '_blank', 'noopener'); };
+$('#vVal').onclick = () => {
+  if (!vAtual) return;
+  const {ambId, meta} = vAtual;
+  modal({titulo:'Valor do recibo',
+    corpo:`<label for="rVal2">Valor (R$)</label><input type="text" inputmode="decimal" id="rVal2" value="${parseNum(meta.valor) ? fmtNum(parseNum(meta.valor)) : ''}" placeholder="0,00">`,
+    botoes:[{txt:'Cancelar', cls:'gh', fn:fecharModal}, {txt:'Salvar', fn:() => {
+      const a = A(ambId); const f = a && a.arquivos.find(x => x.id === meta.id);
+      if (f){ f.valor = parseNum(val('rVal2')); meta.valor = f.valor; }
+      salvar(true); fecharModal();
+      $('#vName').textContent = meta.nome + ' · ' + fmtBytes(meta.tamanho) + ' · ' + fmtData(meta.data) + (parseNum(meta.valor) ? ' · ' + fmtBRL(parseNum(meta.valor)) : '');
+      render(); toast('Valor salvo');
+    }}], aoAbrir: () => $('#rVal2').focus()});
+};
+$('#vDel').onclick = () => {
+  if (!vAtual) return;
+  const {fid, ambId, meta} = vAtual;
+  confirmar('Excluir arquivo', `“${meta.nome}” será apagado deste aparelho.`, async () => {
+    const a = A(ambId); if (a){
+      a.arquivos = a.arquivos.filter(f => f.id !== fid);
+      a.materiais.forEach(m => { if (m.recibos) m.recibos = m.recibos.filter(r => r !== fid); });
+    }
+    await apagarArquivo(fid); await salvar(true);
+    fecharViewer(); render(); toast('Arquivo excluído');
+  });
+};
+
+/* ============================ PERGUNTAR AO CLAUDE ============================ */
+function sugestoes(ambId){
+  const nome = ambId === 'all' ? 'a obra' : nomeAmb(ambId);
+  const alvo = ambId === 'all' ? 'nos ambientes' : `no ${nome}`;
+  return [
+    `Quantas caixas de porcelanato preciso ${alvo}, com 10% de perda?`,
+    `Calcule a área de parede a revestir ${alvo}, descontando porta e janela.`,
+    `Qual o custo por m² de ${nome} até agora?`,
+    `Confira se a quantidade de material comprada dá para terminar ${nome}.`,
+    `Que especificação técnica é adequada para ${nome} (área molhada, PEI, rejunte)?`,
+    `Monte um cronograma das tarefas que faltam em ${nome}.`
+  ];
+}
+function contextoObra(ambId, opc){
+  const u = U(), L = [];
+  L.push(`# Obra: ${u.nome}${u.endereco ? ' — ' + u.endereco : ''}`);
+  if (parseNum(u.orcamento)) L.push(`Orçamento total: ${fmtBRL(parseNum(u.orcamento))}`);
+  const ambs = ambId === 'all' ? u.ambientes : u.ambientes.filter(a => a.id === ambId);
+  ambs.forEach(a => {
+    const x = totaisAmb(a);
+    L.push('', `## Ambiente: ${a.nome}`);
+    if (opc.medidas){
+      const m = [];
+      if (parseNum(a.largura)) m.push(`largura ${fmtNum(a.largura)} m`);
+      if (parseNum(a.comprimento)) m.push(`comprimento ${fmtNum(a.comprimento)} m`);
+      if (parseNum(a.peDireito)) m.push(`pé-direito ${fmtNum(a.peDireito)} m`);
+      if (m.length) L.push(`Medidas: ${m.join(' × ').replace(/ × /g, ', ')}`);
+      if (areaPiso(a) > 0) L.push(`Área de piso: ${fmtNum(areaPiso(a))} m² | Área de paredes (bruta): ${fmtNum(areaParede(a))} m²`);
+      if (a.obs) L.push(`Observações: ${a.obs}`);
+      if (!m.length && !a.obs) L.push('Medidas não informadas.');
+    }
+    if (opc.materiais){
+      L.push('', '### Materiais');
+      if (!a.materiais.length) L.push('- (nenhum cadastrado)');
+      a.materiais.forEach(m => L.push(`- ${m.nome} — unidade ${m.unidade || 'un'}; necessário ${fmtNum(parseNum(m.qtdPrevista))}; comprado ${fmtNum(parseNum(m.qtdComprada))}; aplicado ${fmtNum(parseNum(m.qtdUsada))}; estoque ${fmtNum(estoqueMat(m))}; preço unitário ${fmtBRL(parseNum(m.precoUnit))}; gasto ${fmtBRL(custoMat(m))}${m.fornecedor ? '; fornecedor ' + m.fornecedor : ''}${m.obs ? '; obs.: ' + m.obs : ''}`));
+      L.push(`Subtotal gasto no ambiente: ${fmtBRL(x.gasto)} | previsto: ${fmtBRL(x.previsto)}`);
+    }
+    if (opc.tarefas){
+      L.push('', '### Tarefas');
+      if (!a.tarefas.length) L.push('- (nenhuma)');
+      a.tarefas.forEach(t => L.push(`- [${t.feita ? 'x' : ' '}] ${t.titulo}${t.prazo ? ' (prazo ' + fmtData(t.prazo) + ')' : ''}${t.prioridade === 'alta' ? ' [prioridade alta]' : ''}${t.obs ? ' — ' + t.obs : ''}`));
+    }
+  });
+  if (ambId === 'all'){
+    const t = totaisUnidade();
+    L.push('', `## Totais da obra`, `Gasto: ${fmtBRL(t.gasto)} | Previsto: ${fmtBRL(t.previsto)} | Tarefas abertas: ${t.tarefas}`);
+  }
+  return L.join('\n');
+}
+function montarPrompt(pergunta, ambId, opc){
+  return `Você é meu assistente de obra. Use SOMENTE os dados abaixo; se faltar alguma informação para o cálculo, diga exatamente o que falta antes de responder. Mostre a conta passo a passo e o resultado final em negrito, em português do Brasil, com valores em reais.
+
+PERGUNTA:
+${pergunta}
+
+DADOS DA OBRA:
+${contextoObra(ambId, opc)}`;
+}
+async function copiar(txt){
+  try { await navigator.clipboard.writeText(txt); return true; }
+  catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch(_){}
+    ta.remove(); return ok;
+  }
+}
+$('#fabClaude').onclick = () => abrirClaude(ui.view === 'ambiente' ? ui.amb : (ui.filtroAmb !== 'all' ? ui.filtroAmb : 'all'));
+window.abrirClaude = (ambId) => {
+  const u = U();
+  const opAmb = [`<option value="all">Obra inteira (${esc(u.nome)})</option>`]
+    .concat(u.ambientes.map(x => `<option value="${x.id}" ${x.id === ambId ? 'selected' : ''}>${esc(x.nome)}</option>`)).join('');
+  modal({
+    titulo:'Perguntar ao Claude',
+    corpo:`<label for="cPerg">Sua pergunta</label>
+      <textarea id="cPerg" placeholder="Ex.: quantas caixas de porcelanato 60x60 preciso para o piso, com 10% de perda?"></textarea>
+      <div class="chipwrap"><div class="chips" id="cSug"></div></div>
+      <label for="cAmb">Dados a enviar</label><select id="cAmb">${opAmb}</select>
+      <div class="row wrap small" style="margin-top:10px;gap:14px">
+        <label style="margin:0;text-transform:none;font-size:14px;display:flex;align-items:center;gap:7px"><input type="checkbox" id="cMed" checked style="width:22px;height:22px;min-height:0">Medidas</label>
+        <label style="margin:0;text-transform:none;font-size:14px;display:flex;align-items:center;gap:7px"><input type="checkbox" id="cMat" checked style="width:22px;height:22px;min-height:0">Materiais e custos</label>
+        <label style="margin:0;text-transform:none;font-size:14px;display:flex;align-items:center;gap:7px"><input type="checkbox" id="cTar" style="width:22px;height:22px;min-height:0">Tarefas</label>
+      </div>
+      <div class="err" id="cErr">Escreva a pergunta.</div>
+      <div class="hint">O app monta um texto com os dados escolhidos e copia para você colar no Claude. Nada é enviado automaticamente.</div>`,
+    botoes:[
+      {txt:'Copiar', cls:'gh', fn:() => enviarClaude(false)},
+      {txt:'Copiar e abrir', fn:() => enviarClaude(true)}],
+    aoAbrir: () => {
+      const pintaSug = () => {
+        const lst = sugestoes($('#cAmb').value);
+        $('#cSug').innerHTML = lst.map((x, i) => `<button type="button" class="chip" data-i="${i}">${esc(x.length > 44 ? x.slice(0, 42) + '…' : x)}</button>`).join('');
+      };
+      pintaSug();
+      $('#cAmb').addEventListener('change', pintaSug);
+      $('#cSug').addEventListener('click', e => {
+        const b = e.target.closest('.chip'); if (!b) return;
+        const t = $('#cPerg'); t.value = sugestoes($('#cAmb').value)[+b.dataset.i]; t.focus();
+      });
+      $('#cPerg').focus();
+    }
+  });
+};
+async function enviarClaude(abrir){
+  const p = val('cPerg');
+  if (!p){ $('#cErr').classList.add('on'); $('#cPerg').focus(); return; }
+  const txt = montarPrompt(p, $('#cAmb').value, {medidas:$('#cMed').checked, materiais:$('#cMat').checked, tarefas:$('#cTar').checked});
+  const ok = await copiar(txt);
+  fecharModal();
+  toast(ok ? '✅ Pergunta copiada — é só colar no Claude' : '⚠️ Não consegui copiar. Tente pelo menu › Exportar.', 3200);
+  if (abrir) window.open('https://claude.ai/new', '_blank', 'noopener');
+}
+
+/* ============================ EXPORTAR / BACKUP ============================ */
+function baixar(nome, conteudo, tipo){
+  const blob = conteudo instanceof Blob ? conteudo : new Blob([conteudo], {type:tipo || 'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nome;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+function relatorioMD(){
+  const u = U(), t = totaisUnidade(), L = [];
+  L.push(`# Relatório da obra — ${u.nome}`, `_Gerado em ${fmtData(hoje())} pelo app Obra em Dia_`, '');
+  if (u.endereco) L.push(`**Endereço:** ${u.endereco}`);
+  L.push(`**Gasto até agora:** ${fmtBRL(t.gasto)}  `, `**Custo previsto:** ${fmtBRL(t.previsto)}  `);
+  if (parseNum(u.orcamento)) L.push(`**Orçamento:** ${fmtBRL(parseNum(u.orcamento))} (${fmtNum(t.gasto / parseNum(u.orcamento) * 100, 0)}% usado)  `);
+  L.push(`**Tarefas abertas:** ${t.tarefas}${t.atrasadas ? ` (${t.atrasadas} atrasadas)` : ''}  `, `**Arquivos guardados:** ${t.arquivos}`, '');
+  const compras = [];
+  u.ambientes.forEach(a => a.materiais.forEach(m => { if (faltaMat(m) > 0) compras.push({m, a}); }));
+  if (compras.length){
+    L.push('## Ainda por comprar', '');
+    compras.forEach(({m, a}) => L.push(`- ${m.nome} — ${fmtNum(faltaMat(m))} ${m.unidade || 'un'} — ${fmtBRL(faltaMat(m) * parseNum(m.precoUnit))} (${a.nome})`));
+    L.push('', `**Total a comprar:** ${fmtBRL(t.faltaValor)}`, '');
+  }
+  u.ambientes.forEach(a => {
+    const x = totaisAmb(a);
+    L.push(`## ${a.nome}`);
+    if (areaPiso(a) > 0) L.push(`Piso ${fmtNum(areaPiso(a))} m² · paredes ${fmtNum(areaParede(a))} m²`);
+    if (a.obs) L.push(`> ${a.obs}`);
+    L.push(`Gasto ${fmtBRL(x.gasto)} de ${fmtBRL(x.previsto)} previstos.`, '');
+    if (a.materiais.length){
+      L.push('| Material | Un. | Nec. | Compr. | Aplic. | Estoque | Preço | Gasto |', '|---|---|---|---|---|---|---|---|');
+      a.materiais.forEach(m => L.push(`| ${m.nome} | ${m.unidade || 'un'} | ${fmtNum(parseNum(m.qtdPrevista))} | ${fmtNum(parseNum(m.qtdComprada))} | ${fmtNum(parseNum(m.qtdUsada))} | ${fmtNum(estoqueMat(m))} | ${fmtBRL(parseNum(m.precoUnit))} | ${fmtBRL(custoMat(m))} |`));
+      L.push('');
+      const comRec = a.materiais.filter(m => a.arquivos.some(f => f.matId === m.id && parseNum(f.valor)));
+      if (comRec.length){
+        L.push('**Conferência de recibos**');
+        comRec.forEach(m => {
+          const soma = a.arquivos.filter(f => f.matId === m.id).reduce((t, f) => t + parseNum(f.valor), 0);
+          const dif = soma - custoMat(m);
+          L.push(`- ${m.nome}: recibos ${fmtBRL(soma)} × lançado ${fmtBRL(custoMat(m))}${Math.abs(dif) > 0.5 ? ` — **diferença de ${fmtBRL(Math.abs(dif))}**` : ' — confere'}`);
+        });
+        L.push('');
+      }
+    }
+    if (a.tarefas.length){
+      L.push('**Tarefas**');
+      a.tarefas.slice().sort(ordenaTarefa).forEach(t2 => L.push(`- [${t2.feita ? 'x' : ' '}] ${t2.titulo}${t2.prazo ? ` — prazo ${fmtData(t2.prazo)}` : ''}${t2.prioridade === 'alta' ? ' **(alta)**' : ''}`));
+      L.push('');
+    }
+    if (a.arquivos.length){
+      L.push('**Arquivos**');
+      a.arquivos.forEach(f => L.push(`- ${(CATS[f.cat] || CATS.outro).slice(3)}: ${f.nome} (${fmtBytes(f.tamanho)}, ${fmtData(f.data)})`));
+      L.push('');
+    }
+  });
+  return L.join('\n');
+}
+const slug = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+function blob2b64(b){ return new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.onerror = () => r(null); f.readAsDataURL(b); }); }
+async function backup(comFotos){
+  toast('Preparando backup…', 60000);
+  const pacote = {app:'obra-em-dia', v:1, data:new Date().toISOString(), estado:S, arquivos:{}};
+  if (comFotos){
+    const todos = await dbAll('files');
+    for (const r of todos){
+      const b = await blob2b64(r.blob); if (!b) continue;
+      pacote.arquivos[r.id] = {nome:r.nome, tipo:r.tipo, dados:b};
+    }
+  }
+  const json = JSON.stringify(pacote);
+  baixar(`obra-em-dia-${slug(U().nome)}-${hoje()}${comFotos ? '-completo' : ''}.json`, json, 'application/json');
+  toast(`Backup gerado (${fmtBytes(json.length)})`, 3000);
+}
+function b64toBlob(dataUrl){
+  const [h, d] = String(dataUrl).split(',');
+  const tipo = (h.match(/data:([^;]+)/) || [,'application/octet-stream'])[1];
+  const bin = atob(d); const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type:tipo});
+}
+$('#jsonPick').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  e.target.value = '';
+  try {
+    const p = JSON.parse(await f.text());
+    if (!p || p.app !== 'obra-em-dia' || !p.estado) throw new Error('formato');
+    const nU = p.estado.unidades ? p.estado.unidades.length : 0;
+    confirmar('Restaurar backup', `Isso substitui TUDO que está no app por ${nU} unidade(s) do backup de ${fmtData((p.data||'').slice(0,10))}. Não dá para desfazer.`, async () => {
+      toast('Restaurando…', 60000);
+      S = p.estado;
+      if (p.arquivos) for (const [id, r] of Object.entries(p.arquivos)){
+        try { const blob = b64toBlob(r.dados); await dbPut('files', {id, blob, thumb:null, nome:r.nome, tipo:r.tipo}); } catch(err){ console.warn(err); }
+      }
+      urlCache.forEach((u, k) => URL.revokeObjectURL(u)); urlCache.clear();
+      if (!S.unidadeAtual || !S.unidades.find(u => u.id === S.unidadeAtual)) S.unidadeAtual = S.unidades[0] && S.unidades[0].id;
+      await salvar(true); ui.filtroAmb = 'all'; ui.amb = null;
+      irPara('painel'); toast('Backup restaurado ✅', 3000);
+    }, 'Restaurar');
+  } catch(err){ console.error(err); toast('Arquivo inválido — use um backup do Obra em Dia.', 3600); }
+});
+
+/* ============================ MENU ============================ */
+$('#btnMenu').onclick = async () => {
+  let uso = '';
+  try {
+    if (navigator.storage && navigator.storage.estimate){
+      const es = await navigator.storage.estimate();
+      uso = `Ocupando ${fmtBytes(es.usage || 0)} neste aparelho.`;
+    }
+  } catch(e){}
+  modal({
+    titulo:'Menu',
+    corpo:`<div class="list" style="margin-top:12px">
+      ${item('📄','Exportar relatório','Texto .md com tudo da obra','menuRel')}
+      ${item('✨','Perguntar ao Claude','Monta a pergunta com os dados','menuClaude')}
+      ${item('💾','Backup dos dados','Só os textos e números (leve)','menuBk1')}
+      ${item('🗂️','Backup completo','Inclui fotos e plantas (pesado)','menuBk2')}
+      ${item('↩️','Restaurar backup','Substitui tudo pelo arquivo','menuRest')}
+      ${item('🏠','Unidades','Trocar, criar ou editar','menuUni')}
+      ${item('❓','Como usar','Guia rápido do app','menuAjuda')}
+      ${podeInstalar ? item('📲','Instalar no celular','Abre em tela cheia e sem internet','menuInst') : ''}
+      </div><div class="hint">Obra em Dia ${VERSAO_APP} · tudo fica salvo só no seu aparelho. ${esc(uso)}</div>`,
+    botoes:[{txt:'Fechar', cls:'gh', fn:fecharModal}],
+    aoAbrir: () => {
+      const go = (id, fn) => { const e = document.getElementById(id); if (e) e.onclick = fn; };
+      go('menuRel', () => { baixar(`relatorio-${slug(U().nome)}-${hoje()}.md`, relatorioMD(), 'text/markdown;charset=utf-8'); fecharModal(); toast('Relatório gerado'); });
+      go('menuClaude', () => { fecharModal(); setTimeout(() => abrirClaude('all'), 120); });
+      go('menuBk1', () => { fecharModal(); backup(false); });
+      go('menuBk2', () => { fecharModal(); backup(true); });
+      go('menuRest', () => { fecharModal(); $('#jsonPick').click(); });
+      go('menuUni', () => { fecharModal(); setTimeout(() => $('#btnUnits').click(), 120); });
+      go('menuAjuda', () => { fecharModal(); setTimeout(ajuda, 120); });
+      go('menuInst', async () => {
+        fecharModal();
+        if (!podeInstalar) return;
+        podeInstalar.prompt();
+        try { await podeInstalar.userChoice; } catch(e){}
+        podeInstalar = null;
+      });
+    }
+  });
+};
+function item(ico, tit, sub, id){
+  return `<div class="item" role="button" tabindex="0" id="${id}"><div class="av">${ico}</div>
+    <div class="grow"><div class="ell"><b>${esc(tit)}</b></div><div class="tiny muted">${esc(sub)}</div></div><div class="muted">›</div></div>`;
+}
+function ajuda(){
+  modal({titulo:'Como usar', corpo:`<div class="small" style="line-height:1.6">
+    <p><b>1. Unidade e ambientes.</b> Cada obra é uma <i>unidade</i> (o apartamento, a casa). Dentro dela ficam os ambientes. Toque em 🏠 no topo para trocar de obra.</p>
+    <p><b>2. Arquivos.</b> Guarde plantas (PDF ou imagem), fotos do andamento e recibos. As fotos são reduzidas para não lotar o aparelho.</p>
+    <p><b>3. Materiais.</b> Informe quanto é <i>necessário</i>, quanto foi <i>comprado</i> e quanto já foi <i>aplicado</i>. O app calcula estoque, o que falta comprar e o custo.</p>
+    <p><b>4. Tarefas.</b> Toque no quadrinho para concluir. Prazo vencido aparece em vermelho no painel.</p>
+    <p><b>5. Claude.</b> O botão ✨ monta um texto com as medidas e os materiais do ambiente e copia para você colar no Claude — bom para calcular m², perdas, quantidade de caixas e especificações.</p>
+    <p><b>6. Instalar.</b> No Android, ⋯ › Instalar no celular. No iPhone, use <i>Compartilhar › Adicionar à Tela de Início</i> no Safari. Depois abre em tela cheia e funciona sem internet.</p>
+    <p><b>7. Backup.</b> Os dados ficam só neste aparelho. Faça o backup completo de vez em quando e guarde no Drive.</p></div>`,
+    botoes:[{txt:'Entendi', fn:fecharModal}]});
+}
+
+/* ============================ EVENTOS E BOOT ============================ */
+const VERSAO_APP = 'v1';
+let podeInstalar = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); podeInstalar = e; });
+window.addEventListener('appinstalled', () => { podeInstalar = null; toast('Instalado 🎉'); });
+
+$$('#nav button').forEach(b => b.onclick = () => irPara(b.dataset.v));
+$$('[data-go]').forEach(b => b.onclick = () => irPara(b.dataset.go));
+$('#btnBack').onclick = () => irPara('ambientes');
+$('#addAmb').onclick = () => editarAmbiente(null);
+$('#addMat').onclick = () => editarMaterial(null, ui.filtroAmb !== 'all' ? ui.filtroAmb : null);
+$('#addTar').onclick = () => editarTarefa(null, ui.filtroAmb !== 'all' ? ui.filtroAmb : null);
+$('#addArq').onclick = () => pedirArquivos(null);
+$('#claudePainel').onclick = () => abrirClaude('all');
+$('#toggleFeitas').onclick = () => { ui.verFeitas = !ui.verFeitas; render(); };
+
+
+function migrar(s){
+  if (!s || !Array.isArray(s.unidades) || !s.unidades.length) return estadoInicial();
+  s.unidades.forEach(u => {
+    u.ambientes = u.ambientes || [];
+    u.orcamento = parseNum(u.orcamento);
+    u.ambientes.forEach(a => {
+      a.arquivos = a.arquivos || []; a.materiais = a.materiais || []; a.tarefas = a.tarefas || [];
+      a.materiais.forEach(m => { m.recibos = m.recibos || []; });
+    });
+  });
+  if (!s.unidadeAtual || !s.unidades.find(u => u.id === s.unidadeAtual)) s.unidadeAtual = s.unidades[0].id;
+  return s;
+}
+async function limparOrfaos(){
+  try {
+    const usados = new Set();
+    S.unidades.forEach(u => u.ambientes.forEach(a => a.arquivos.forEach(f => usados.add(f.id))));
+    const keys = await dbKeys('files');
+    for (const k of keys) if (!usados.has(k)) await dbDel('files', k);
+  } catch(e){ console.warn(e); }
+}
+async function iniciar(){
+  try {
+    const salvo = await dbGet('kv', 'state');
+    S = migrar(salvo);
+    if (!salvo) await salvar(true);
+  } catch(e){
+    console.error(e);
+    S = estadoInicial();
+    toast('⚠️ Não consegui abrir o banco local. Em aba anônima os dados não são guardados.', 6000);
+  }
+  $('#boot').remove();
+  irPara('painel');
+  limparOrfaos();
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+}
+window.addEventListener('beforeunload', () => { if (salvarT){ clearTimeout(salvarT); dbPut('kv', JSON.parse(JSON.stringify(S)), 'state'); } });
+iniciar();
+</script>
+</body>
+</html>
