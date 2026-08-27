@@ -296,6 +296,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
   <!-- AMBIENTE (detalhe) -->
   <section class="view" id="v-ambiente">
     <div class="card" id="ambHead"></div>
+    <div id="ambRevest"></div>
     <div class="chipwrap"><div class="chips" id="ambTabs"></div></div>
     <div id="ambConteudo"></div>
   </section>
@@ -349,6 +350,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtBRL = n => (isFinite(n) ? n : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
 const fmtNum = (n, d = 2) => (isFinite(n) ? n : 0).toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:d});
+const fmtM = n => (isFinite(n) ? n : 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 function parseNum(v){
   if (typeof v === 'number') return isFinite(v) ? v : 0;
   if (!v) return 0;
@@ -425,9 +427,20 @@ function salvar(imediato){
   if (imediato) return go();
   salvarT = setTimeout(go, 250);
 }
+const ABERTURAS_PADRAO = {
+  porta:  {nome:'Porta',  largura:0.80, altura:2.10},
+  janela: {nome:'Janela', largura:1.20, altura:1.10},
+  box:    {nome:'Box',    largura:0.90, altura:1.90}
+};
+function revestPadrao(nome){
+  const n = (nome || '').toLowerCase();
+  const molhado = n.includes('banheiro') || n.includes('lavabo') || n.includes('cozinha') || n.includes('área de serviço');
+  return {modo: molhado ? 'piso+paredes' : 'piso', alturaParede:0, perda:10, aberturas:[], m2Caixa:0};
+}
 const AMBIENTES_INICIAIS = ['Quarto Arthur','Banheiro Arthur','Banheiro Suíte Master','Banheiro Social','Banheiro Francisco'];
 function novoAmbiente(nome){
-  return {id:uid(), nome, obs:'', largura:0, comprimento:0, peDireito:0, arquivos:[], materiais:[], tarefas:[]};
+  return {id:uid(), nome, obs:'', largura:0, comprimento:0, peDireito:0,
+    revest:revestPadrao(nome), arquivos:[], materiais:[], tarefas:[]};
 }
 function estadoInicial(){
   return {
@@ -473,7 +486,37 @@ function totaisAmb(a){
   return r;
 }
 const areaPiso = a => parseNum(a.largura) * parseNum(a.comprimento);
-const areaParede = a => 2 * (parseNum(a.largura) + parseNum(a.comprimento)) * parseNum(a.peDireito);
+const perimetro = a => 2 * (parseNum(a.largura) + parseNum(a.comprimento));
+const areaParede = a => perimetro(a) * parseNum(a.peDireito);
+const MODOS = {
+  'piso':         'Só o piso',
+  'piso+paredes': 'Piso e paredes',
+  'paredes':      'Só as paredes',
+  'nenhum':       'Não vai revestir'
+};
+function calcRevest(a){
+  const r = a.revest || revestPadrao(a.nome);
+  const modo = r.modo || 'piso';
+  const alt = parseNum(r.alturaParede) || parseNum(a.peDireito);
+  const perda = parseNum(r.perda);
+  const piso = areaPiso(a);
+  const paredeBruta = perimetro(a) * alt;
+  // a abertura só desconta a parte dela que fica dentro da faixa revestida
+  const desc = (r.aberturas || []).reduce((t, ab) => {
+    const hEfetiva = Math.min(parseNum(ab.altura), alt || parseNum(ab.altura));
+    return t + parseNum(ab.largura) * hEfetiva * Math.max(1, parseNum(ab.qtd) || 1);
+  }, 0);
+  const paredeLiq = Math.max(0, paredeBruta - desc);
+  const usaPiso = modo === 'piso' || modo === 'piso+paredes';
+  const usaParede = modo === 'paredes' || modo === 'piso+paredes';
+  const total = (usaPiso ? piso : 0) + (usaParede ? paredeLiq : 0);
+  const comPerda = total * (1 + perda / 100);
+  const m2Caixa = parseNum(r.m2Caixa);
+  return {modo, rotulo:MODOS[modo] || MODOS.piso, alt, perda, piso, perimetro:perimetro(a),
+    paredeBruta, descontos:desc, paredeLiq, usaPiso, usaParede, total, comPerda,
+    m2Caixa, caixas: m2Caixa > 0 ? Math.ceil(comPerda / m2Caixa) : null,
+    completo: piso > 0 && (!usaParede || alt > 0)};
+}
 
 /* ---------- arquivos: compressão e cache ---------- */
 const urlCache = new Map();
@@ -665,7 +708,9 @@ function renderAmbientes(){
     return `<div class="card tap" role="button" tabindex="0" onclick="irPara('ambiente',{amb:'${a.id}'})">
       <div data-capa="${a.id}" class="capa-box"></div>
       <div class="row"><div class="grow"><b>${icoAmb(a.nome)} ${esc(a.nome)}</b>
-        <div class="tiny muted">${area > 0 ? fmtNum(area) + ' m² · ' : ''}${pl(x.arquivos,'arquivo')} · ${pl(x.mats,'material','materiais')}</div></div>
+        <div class="tiny muted">${area > 0 ? fmtNum(area) + ' m² · ' : ''}${pl(x.arquivos,'arquivo')} · ${pl(x.mats,'material','materiais')}</div>
+        ${(() => { const cr = calcRevest(a); return cr.completo && cr.modo !== 'nenhum'
+          ? `<div class="tiny" style="color:var(--brand);margin-top:3px">📐 ${fmtM(cr.comPerda)} m² a revestir · ${esc(cr.rotulo.toLowerCase())}</div>` : ''; })()}</div>
         <div class="right"><div class="money">${fmtBRL(x.gasto)}</div>
         ${x.faltando ? `<span class="tag warn">${x.faltando} a comprar</span>` : ''}</div></div>
       ${tot ? `<div class="bar"><i style="width:${feitasPct}%"></i></div>
@@ -679,10 +724,11 @@ function renderAmbientes(){
 function renderAmbiente(){
   const a = A(ui.amb);
   if (!a){ irPara('ambientes'); return; }
-  const x = totaisAmb(a), ap = areaPiso(a), pa = areaParede(a);
+  const x = totaisAmb(a), ap = areaPiso(a), c = calcRevest(a);
   $('#ambHead').innerHTML = `
     <div class="row" style="align-items:flex-start"><div class="grow mini">
-        ${ap > 0 ? `<div><span>Piso</span><b>${fmtNum(ap)} m²</b></div><div><span>Paredes</span><b>${fmtNum(pa)} m²</b></div>` : ''}
+        ${ap > 0 ? `<div><span>Piso</span><b>${fmtNum(ap)} m²</b></div>
+          <div><span>${c.usaParede ? 'Paredes' : 'Pé-direito'}</span><b>${c.usaParede ? fmtNum(c.paredeLiq) + ' m²' : (parseNum(a.peDireito) ? fmtNum(a.peDireito) + ' m' : '—')}</b></div>` : ''}
         <div><span>Gasto</span><b>${fmtBRL(x.gasto)}</b></div>
         <div><span>${x.faltando ? 'A comprar' : 'Previsto'}</span><b${x.faltando ? ' style="color:var(--warn)"' : ''}>${fmtBRL(x.faltando ? x.previsto - x.gasto : x.previsto)}</b></div></div>
       <button class="iconbtn" onclick="editarAmbiente('${a.id}')" aria-label="Editar ambiente" title="Editar ambiente">✎</button></div>
@@ -690,6 +736,12 @@ function renderAmbiente(){
     ${ap > 0 ? '' : '<div class="hint">Toque em ✎ e informe largura, comprimento e pé-direito para o app calcular as áreas.</div>'}
     <div style="height:10px"></div>
     <button class="btn gh wide sm" onclick="abrirClaude('${a.id}')">✨ Perguntar ao Claude</button>`;
+  $('#ambRevest').innerHTML = c.modo === 'nenhum' ? '' : `<div class="card">
+    <div class="row"><div class="grow"><b>Revestimento</b></div>
+      <button class="btn sm gh" onclick="copiarRevest('${a.id}')">Copiar</button></div>
+    <div style="height:8px"></div>
+    ${revestHTML(c)}
+    ${c.completo ? '' : '<div class="hint">Toque em ✎ para informar as medidas.</div>'}</div>`;
   const tabs = [['arquivos', '▣ Arquivos', x.arquivos], ['materiais', '▤ Materiais', x.mats], ['tarefas', '✓ Tarefas', x.tarefas]];
   $('#ambTabs').innerHTML = tabs.map(([k, t, n]) =>
     `<button class="chip ${ui.ambTab === k ? 'on' : ''}" onclick="ui.ambTab='${k}';render()">${t}${n ? ' · ' + n : ''}</button>`).join('');
@@ -712,6 +764,28 @@ function renderAmbiente(){
       + `<button class="btn wide gh" onclick="editarTarefa(null,'${a.id}')">＋ Nova tarefa</button>`;
   }
 }
+
+window.copiarRevest = async ambId => {
+  const a = A(ambId); if (!a) return;
+  const c = calcRevest(a);
+  if (!c.completo) return toast('Informe as medidas primeiro.');
+  const L = [`${a.nome} — cálculo de revestimento`, `${c.rotulo}`, ''];
+  L.push(`Medidas: ${fmtM(a.largura)} × ${fmtM(a.comprimento)} m, pé-direito ${fmtM(a.peDireito)} m`);
+  if (c.usaPiso) L.push(`Piso: ${fmtM(a.largura)} × ${fmtM(a.comprimento)} = ${fmtM(c.piso)} m²`);
+  if (c.usaParede){
+    L.push(`Perímetro: 2 × (${fmtM(a.largura)} + ${fmtM(a.comprimento)}) = ${fmtM(c.perimetro)} m`);
+    L.push(`Paredes até ${fmtM(c.alt)} m: ${fmtM(c.perimetro)} × ${fmtM(c.alt)} = ${fmtM(c.paredeBruta)} m² brutos`);
+    (a.revest.aberturas || []).forEach(ab => {
+      const hEf = Math.min(parseNum(ab.altura), c.alt || parseNum(ab.altura));
+      const q = Math.max(1, parseNum(ab.qtd) || 1);
+      L.push(`  − ${ab.nome}: ${fmtM(ab.largura)} × ${fmtM(hEf)}${hEf < parseNum(ab.altura) ? ` (de ${fmtM(ab.altura)} m, só a parte revestida)` : ''} × ${q} = ${fmtM(parseNum(ab.largura) * hEf * q)} m²`);
+    });
+    if (c.descontos > 0) L.push(`Paredes líquidas: ${fmtM(c.paredeBruta)} − ${fmtM(c.descontos)} = ${fmtM(c.paredeLiq)} m²`);
+  }
+  L.push('', `Total: ${fmtM(c.total)} m²`, `Com ${fmtNum(c.perda)}% de perda: ${fmtM(c.comPerda)} m²`);
+  if (c.caixas) L.push(`Caixas de ${fmtM(c.m2Caixa)} m²: ${c.caixas} (arredondando para cima)`);
+  toast(await copiar(L.join('\n')) ? '📐 Cálculo copiado' : 'Não consegui copiar');
+};
 
 /* ============================ MATERIAIS ============================ */
 function chipsAmbiente(alvo, valor, fn){
@@ -945,8 +1019,37 @@ $('#btnUnits').onclick = () => {
 window.trocarUnidade = id => { S.unidadeAtual = id; ui.filtroAmb = 'all'; ui.amb = null; salvar(); fecharModal(); irPara('painel'); };
 
 /* ============================ AMBIENTES ============================ */
+let abertTmp = [];
+window.addAbertura = tipo => {
+  const m = ABERTURAS_PADRAO[tipo] || ABERTURAS_PADRAO.porta;
+  abertTmp.push({id:uid(), nome:m.nome, largura:m.largura, altura:m.altura, qtd:1});
+  pintarAberturas();
+};
+window.tirarAbertura = aid => { abertTmp = abertTmp.filter(x => x.id !== aid); pintarAberturas(); };
+function pintarAberturas(){
+  const box = document.getElementById('aAbert'); if (!box) return;
+  box.innerHTML = abertTmp.length ? abertTmp.map(ab => `
+    <div class="row" style="gap:6px;margin-bottom:6px">
+      <input type="text" style="flex:1.4;min-width:0" value="${esc(ab.nome)}" data-ab="${ab.id}" data-c="nome" aria-label="Nome da abertura">
+      <input type="text" inputmode="decimal" style="flex:1;min-width:0" value="${fmtNum(ab.largura)}" data-ab="${ab.id}" data-c="largura" aria-label="Largura em metros">
+      <span class="muted small">×</span>
+      <input type="text" inputmode="decimal" style="flex:1;min-width:0" value="${fmtNum(ab.altura)}" data-ab="${ab.id}" data-c="altura" aria-label="Altura em metros">
+      <input type="text" inputmode="numeric" style="flex:0 0 46px" value="${ab.qtd}" data-ab="${ab.id}" data-c="qtd" aria-label="Quantidade">
+      <button type="button" class="iconbtn" onclick="tirarAbertura('${ab.id}')" aria-label="Remover ${esc(ab.nome)}">✕</button>
+    </div>`).join('')
+    : '<div class="hint" style="margin-top:0">Nenhum desconto. A área das paredes será contada cheia.</div>';
+  box.querySelectorAll('[data-ab]').forEach(inp => inp.addEventListener('input', () => {
+    const ab = abertTmp.find(x => x.id === inp.dataset.ab); if (!ab) return;
+    ab[inp.dataset.c] = inp.dataset.c === 'nome' ? inp.value : parseNum(inp.value);
+    if (typeof recalcAmb === 'function') recalcAmb();
+  }));
+  if (typeof recalcAmb === 'function') recalcAmb();
+}
+let recalcAmb = null;
 window.editarAmbiente = id => {
   const a = id ? A(id) : null;
+  const rv = (a && a.revest) || revestPadrao(a ? a.nome : '');
+  abertTmp = JSON.parse(JSON.stringify(rv.aberturas || [])).map(x => ({id:x.id || uid(), ...x}));
   modal({
     titulo: a ? 'Editar ambiente' : 'Novo ambiente',
     corpo: `<label for="aNome">Nome do ambiente *</label><input type="text" id="aNome" value="${esc(a ? a.nome : '')}" placeholder="Ex.: Banheiro Social">
@@ -954,7 +1057,33 @@ window.editarAmbiente = id => {
       <div class="f2"><div><label for="aL">Largura (m)</label><input type="text" inputmode="decimal" id="aL" value="${a && parseNum(a.largura) ? fmtNum(parseNum(a.largura)) : ''}" placeholder="2,40"></div>
       <div><label for="aC">Comprimento (m)</label><input type="text" inputmode="decimal" id="aC" value="${a && parseNum(a.comprimento) ? fmtNum(parseNum(a.comprimento)) : ''}" placeholder="3,10"></div></div>
       <label for="aP">Pé-direito (m)</label><input type="text" inputmode="decimal" id="aP" value="${a && parseNum(a.peDireito) ? fmtNum(parseNum(a.peDireito)) : ''}" placeholder="2,70">
-      <div class="hint">Com as medidas o app calcula sozinho a área de piso e de paredes.</div>
+
+      <label for="aModo">O que vai ser revestido</label>
+      <select id="aModo">${Object.entries(MODOS).map(([k, t]) =>
+        `<option value="${k}" ${(rv.modo || 'piso') === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
+
+      <div id="aParedeBox">
+        <div class="f2">
+          <div><label for="aAlt">Altura do revestimento (m)</label>
+            <input type="text" inputmode="decimal" id="aAlt" value="${parseNum(rv.alturaParede) ? fmtNum(parseNum(rv.alturaParede)) : ''}" placeholder="até o teto"></div>
+          <div><label for="aPerda">Perda de corte (%)</label>
+            <input type="text" inputmode="decimal" id="aPerda" value="${fmtNum(parseNum(rv.perda) || 10)}" placeholder="10"></div>
+        </div>
+        <div class="hint">Altura em branco reveste até o teto; meia parede de banheiro costuma ser 1,80. Cada abertura desconta só a parte dela dentro da faixa revestida.</div>
+
+        <label>Descontar portas, janelas e box</label>
+        <div id="aAbert"></div>
+        <div class="btns" style="margin-top:8px">
+          <button type="button" class="btn gh sm" onclick="addAbertura('porta')">＋ Porta</button>
+          <button type="button" class="btn gh sm" onclick="addAbertura('janela')">＋ Janela</button>
+          <button type="button" class="btn gh sm" onclick="addAbertura('box')">＋ Box</button>
+        </div>
+      </div>
+
+      <label for="aCaixa">Rendimento da caixa (m², opcional)</label>
+      <input type="text" inputmode="decimal" id="aCaixa" value="${parseNum(rv.m2Caixa) ? fmtNum(parseNum(rv.m2Caixa)) : ''}" placeholder="Ex.: 2,16">
+      <div class="card" id="aCalc" style="margin:12px 0 0;background:var(--brand-soft);border-color:transparent"></div>
+
       <label for="aObs">Observações</label><textarea id="aObs" placeholder="Ex.: porcelanato 60x60, bancada em quartzo…">${esc(a ? a.obs : '')}</textarea>`,
     botoes: [
       ...(a ? [{txt:'Excluir', cls:'dz', fn:() => confirmar('Excluir ambiente',
@@ -964,14 +1093,50 @@ window.editarAmbiente = id => {
       {txt:'Salvar', fn:() => {
         const nome = val('aNome');
         if (!nome){ $('#aErr').classList.add('on'); $('#aNome').focus(); return; }
-        const d = {nome, largura:parseNum(val('aL')), comprimento:parseNum(val('aC')), peDireito:parseNum(val('aP')), obs:val('aObs')};
+        const d = {nome, largura:parseNum(val('aL')), comprimento:parseNum(val('aC')), peDireito:parseNum(val('aP')), obs:val('aObs'),
+          revest:{modo:$('#aModo').value, alturaParede:parseNum(val('aAlt')), perda:parseNum(val('aPerda')),
+            m2Caixa:parseNum(val('aCaixa')),
+            aberturas:abertTmp.filter(x => parseNum(x.largura) > 0 && parseNum(x.altura) > 0)}};
         if (a) Object.assign(a, d);
         else { const n = Object.assign(novoAmbiente(nome), d); U().ambientes.push(n); ui.amb = n.id; }
         salvar(true); fecharModal(); a ? render() : irPara('ambiente', {amb:ui.amb}); toast('Ambiente salvo');
       }}],
-    aoAbrir: () => $('#aNome').focus()
+    aoAbrir: () => {
+      recalcAmb = () => {
+        const fake = {nome:val('aNome'), largura:parseNum(val('aL')), comprimento:parseNum(val('aC')),
+          peDireito:parseNum(val('aP')),
+          revest:{modo:$('#aModo').value, alturaParede:parseNum(val('aAlt')), perda:parseNum(val('aPerda')),
+            m2Caixa:parseNum(val('aCaixa')), aberturas:abertTmp}};
+        const c = calcRevest(fake);
+        $('#aParedeBox').style.display = c.usaParede ? 'block' : 'none';
+        $('#aCalc').innerHTML = revestHTML(c, true);
+      };
+      ['aL','aC','aP','aAlt','aPerda','aCaixa'].forEach(i => {
+        const e = document.getElementById(i); if (e) e.addEventListener('input', recalcAmb); });
+      $('#aModo').addEventListener('change', recalcAmb);
+      pintarAberturas();
+      recalcAmb();
+      if (!id) $('#aNome').focus();
+    }
   });
 };
+function revestHTML(c, compacto){
+  if (!c.completo) return '<div class="small muted">Informe largura e comprimento para o app calcular a área.</div>';
+  const l = [];
+  if (c.usaPiso) l.push(['Piso', `${fmtM(c.piso)} m²`]);
+  if (c.usaParede){
+    l.push(['Paredes (bruta)', `${fmtM(c.perimetro)} m × ${fmtM(c.alt)} m = ${fmtM(c.paredeBruta)} m²`]);
+    if (c.descontos > 0) l.push(['Descontos', `− ${fmtM(c.descontos)} m²`]);
+    l.push(['Paredes a revestir', `${fmtM(c.paredeLiq)} m²`]);
+  }
+  return `<div class="small"><b>${esc(c.rotulo)}</b></div>
+    ${l.map(([k, v]) => `<div class="row small" style="margin-top:5px"><div class="grow muted">${esc(k)}</div><div>${esc(v)}</div></div>`).join('')}
+    <hr style="margin:10px 0">
+    <div class="row"><div class="grow"><b>Área a revestir</b><div class="tiny muted">com ${fmtNum(c.perda)}% de perda de corte</div></div>
+      <div class="right"><b style="font-size:19px">${fmtM(c.comPerda)} m²</b>
+        <div class="tiny muted">${fmtM(c.total)} m² sem perda</div></div></div>
+    ${c.caixas ? `<div class="row small" style="margin-top:8px"><div class="grow muted">Caixas de ${fmtM(c.m2Caixa)} m²</div><div><b>${c.caixas}</b></div></div>` : ''}`;
+}
 async function excluirAmbiente(id){
   const a = A(id); if (!a) return;
   for (const f of a.arquivos) await apagarArquivo(f.id);
@@ -1224,7 +1389,7 @@ function sugestoes(ambId){
   const nome = ambId === 'all' ? 'a obra' : nomeAmb(ambId);
   const alvo = ambId === 'all' ? 'nos ambientes' : `no ${nome}`;
   return [
-    `Quantas caixas de porcelanato preciso ${alvo}, com 10% de perda?`,
+    `Confira meu cálculo de revestimento ${alvo} e diga quantas caixas comprar.`,
     `Calcule a área de parede a revestir ${alvo}, descontando porta e janela.`,
     `Qual o custo por m² de ${nome} até agora?`,
     `Confira se a quantidade de material comprada dá para terminar ${nome}.`,
@@ -1242,11 +1407,24 @@ function contextoObra(ambId, opc){
     L.push('', `## Ambiente: ${a.nome}`);
     if (opc.medidas){
       const m = [];
-      if (parseNum(a.largura)) m.push(`largura ${fmtNum(a.largura)} m`);
-      if (parseNum(a.comprimento)) m.push(`comprimento ${fmtNum(a.comprimento)} m`);
-      if (parseNum(a.peDireito)) m.push(`pé-direito ${fmtNum(a.peDireito)} m`);
+      if (parseNum(a.largura)) m.push(`largura ${fmtM(a.largura)} m`);
+      if (parseNum(a.comprimento)) m.push(`comprimento ${fmtM(a.comprimento)} m`);
+      if (parseNum(a.peDireito)) m.push(`pé-direito ${fmtM(a.peDireito)} m`);
       if (m.length) L.push(`Medidas: ${m.join(' × ').replace(/ × /g, ', ')}`);
-      if (areaPiso(a) > 0) L.push(`Área de piso: ${fmtNum(areaPiso(a))} m² | Área de paredes (bruta): ${fmtNum(areaParede(a))} m²`);
+      const cr = calcRevest(a);
+      if (cr.completo){
+        L.push(`Revestimento: ${cr.rotulo}`);
+        L.push(`Área de piso: ${fmtM(cr.piso)} m² | perímetro: ${fmtM(cr.perimetro)} m`);
+        if (cr.usaParede){
+          L.push(`Paredes até ${fmtM(cr.alt)} m: ${fmtM(cr.paredeBruta)} m² brutos${cr.descontos > 0 ? `, menos ${fmtM(cr.descontos)} m² de aberturas = ${fmtM(cr.paredeLiq)} m²` : ''}`);
+          (a.revest.aberturas || []).forEach(ab => {
+            const hEf = Math.min(parseNum(ab.altura), cr.alt || parseNum(ab.altura));
+            L.push(`  - ${ab.nome}: ${fmtM(ab.largura)} × ${fmtM(ab.altura)} m, ${ab.qtd || 1} un.${hEf < parseNum(ab.altura) ? ` (descontado só até ${fmtM(hEf)} m, a altura do revestimento)` : ''}`);
+          });
+        }
+        L.push(`Área total a revestir: ${fmtM(cr.total)} m² (${fmtM(cr.comPerda)} m² com ${fmtNum(cr.perda)}% de perda)`);
+        if (cr.caixas) L.push(`Rendimento informado: ${fmtM(cr.m2Caixa)} m² por caixa, dando ${cr.caixas} caixas`);
+      }
       if (a.obs) L.push(`Observações: ${a.obs}`);
       if (!m.length && !a.obs) L.push('Medidas não informadas.');
     }
@@ -1358,7 +1536,11 @@ function relatorioMD(){
   u.ambientes.forEach(a => {
     const x = totaisAmb(a);
     L.push(`## ${a.nome}`);
-    if (areaPiso(a) > 0) L.push(`Piso ${fmtNum(areaPiso(a))} m² · paredes ${fmtNum(areaParede(a))} m²`);
+    const cr = calcRevest(a);
+    if (cr.completo){
+      L.push(`Piso ${fmtM(cr.piso)} m²${cr.usaParede ? ` · paredes ${fmtM(cr.paredeLiq)} m² (até ${fmtM(cr.alt)} m)` : ''}`);
+      if (cr.modo !== 'nenhum') L.push(`**Revestimento (${cr.rotulo}):** ${fmtM(cr.total)} m², ou ${fmtM(cr.comPerda)} m² com ${fmtNum(cr.perda)}% de perda${cr.caixas ? ` — ${cr.caixas} caixas de ${fmtM(cr.m2Caixa)} m²` : ''}`);
+    }
     if (a.obs) L.push(`> ${a.obs}`);
     L.push(`Gasto ${fmtBRL(x.gasto)} de ${fmtBRL(x.previsto)} previstos.`, '');
     if (a.materiais.length){
@@ -1483,15 +1665,17 @@ function ajuda(){
     <p><b>1. Unidade e ambientes.</b> Cada obra é uma <i>unidade</i> (o apartamento, a casa). Dentro dela ficam os ambientes. Toque em 🏠 no topo para trocar de obra.</p>
     <p><b>2. Arquivos.</b> Guarde plantas (PDF ou imagem), fotos do andamento e recibos. As fotos são reduzidas para não lotar o aparelho.</p>
     <p><b>3. Materiais.</b> Informe quanto é <i>necessário</i>, quanto foi <i>comprado</i> e quanto já foi <i>aplicado</i>. O app calcula estoque, o que falta comprar e o custo.</p>
-    <p><b>4. Tarefas.</b> Toque no quadrinho para concluir. Prazo vencido aparece em vermelho no painel.</p>
-    <p><b>5. Claude.</b> O botão ✨ monta um texto com as medidas e os materiais do ambiente e copia para você colar no Claude — bom para calcular m², perdas, quantidade de caixas e especificações.</p>
-    <p><b>6. Instalar.</b> No Android, ⋯ › Instalar no celular. No iPhone, use <i>Compartilhar › Adicionar à Tela de Início</i> no Safari. Depois abre em tela cheia e funciona sem internet.</p>
-    <p><b>7. Backup.</b> Os dados ficam só neste aparelho. Faça o backup completo de vez em quando e guarde no Drive.</p></div>`,
+    <p><b>4. Revestimento.</b> No ✎ do ambiente escolha se vai revestir só o piso ou também as paredes (o app já sugere piso e paredes para banheiro e cozinha). Informe a altura, desconte portas e janelas, e ele calcula a área com a perda de corte. Se informar o rendimento da caixa, diz quantas caixas comprar.</p>
+    <p><b>5. Tarefas.</b> Toque no quadrinho para concluir. Prazo vencido aparece em vermelho no painel.</p>
+    <p><b>6. Claude.</b> O botão ✨ monta um texto com as medidas e os materiais do ambiente e copia para você colar no Claude — bom para calcular m², perdas, quantidade de caixas e especificações.</p>
+    <p><b>7. Instalar.</b> No Android, ⋯ › Instalar no celular. No iPhone, use <i>Compartilhar › Adicionar à Tela de Início</i> no Safari. Depois abre em tela cheia e funciona sem internet.</p>
+    <p><b>8. Backup.</b> Os dados ficam só neste aparelho. Faça o backup completo de vez em quando e guarde no Drive.</p>
+    <p><b>⚠️ No iPhone:</b> se você abrir o app pelo Safari sem instalar na tela de início, o próprio iOS apaga os dados depois de <b>7 dias sem uso</b>. Instale na tela de início e faça backup — aí os dados ficam.</p></div>`,
     botoes:[{txt:'Entendi', fn:fecharModal}]});
 }
 
 /* ============================ EVENTOS E BOOT ============================ */
-const VERSAO_APP = 'v1';
+const VERSAO_APP = 'v2';
 let podeInstalar = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); podeInstalar = e; });
 window.addEventListener('appinstalled', () => { podeInstalar = null; toast('Instalado 🎉'); });
@@ -1514,6 +1698,8 @@ function migrar(s){
     u.orcamento = parseNum(u.orcamento);
     u.ambientes.forEach(a => {
       a.arquivos = a.arquivos || []; a.materiais = a.materiais || []; a.tarefas = a.tarefas || [];
+      if (!a.revest) a.revest = revestPadrao(a.nome);
+      a.revest.aberturas = a.revest.aberturas || [];
       a.materiais.forEach(m => { m.recibos = m.recibos || []; });
     });
   });
