@@ -274,8 +274,10 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
   <!-- TAREFAS -->
   <section class="view" id="v-tarefas">
     <div class="chipwrap"><div class="chips" id="filtroTar"></div></div>
-    <div class="row" style="margin-bottom:10px">
-      <div class="grow small muted" id="resumoTar"></div>
+    <div class="chipwrap" id="wrapResp"><div class="chips" id="filtroResp"></div></div>
+    <div class="small muted" id="resumoTar" style="margin:2px 0 8px"></div>
+    <div class="btns" style="margin-bottom:10px">
+      <button class="btn sm gh" id="copiarTar">📋 Copiar lista</button>
       <button class="btn sm gh" id="toggleFeitas">Mostrar feitas</button>
     </div>
     <div id="listaTar"></div>
@@ -336,6 +338,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="filePick" multiple hidden>
 <input type="file" id="jsonPick" accept="application/json,.json" hidden>
+<input type="file" id="listaPick" accept="application/json,.json" hidden>
 <script>
 "use strict";
 /* ============================================================
@@ -417,7 +420,7 @@ const dbKeys  = store => tx(store, 'readonly', s => s.getAllKeys());
 
 /* ---------- estado ---------- */
 let S = null;                                   // estado do app
-const ui = { view:'painel', amb:null, filtroAmb:'all', filtroCat:'all', ambTab:'arquivos', verFeitas:false, soFalta:false };
+const ui = { view:'painel', amb:null, filtroAmb:'all', filtroCat:'all', ambTab:'arquivos', verFeitas:false, soFalta:false, filtroResp:'all' };
 let salvarT;
 function salvar(imediato){
   clearTimeout(salvarT);
@@ -437,7 +440,7 @@ function revestPadrao(nome){
   const molhado = n.includes('banheiro') || n.includes('lavabo') || n.includes('cozinha') || n.includes('área de serviço');
   return {modo: molhado ? 'piso+paredes' : 'piso', alturaParede:0, perda:10, aberturas:[], m2Caixa:0};
 }
-const AMBIENTES_INICIAIS = ['Quarto Arthur','Banheiro Arthur','Banheiro Suíte Master','Banheiro Social','Banheiro Francisco'];
+const AMBIENTES_INICIAIS = ['Suíte Arthur','Banheiro Arthur','Banheiro Suíte Master','Banheiro Social','Banheiro Francisco'];
 function novoAmbiente(nome){
   return {id:uid(), nome, obs:'', largura:0, comprimento:0, peDireito:0,
     revest:revestPadrao(nome), arquivos:[], materiais:[], tarefas:[]};
@@ -845,6 +848,16 @@ window.copiarCompras = async () => {
 };
 
 /* ============================ TAREFAS ============================ */
+function contarPorResp(r){
+  const u = U(); let n = 0;
+  if (u) u.ambientes.forEach(a => a.tarefas.forEach(t => { if (t.resp === r && !t.feita) n++; }));
+  return n;
+}
+function responsaveis(){
+  const u = U(); const set = new Set();
+  if (u) u.ambientes.forEach(a => a.tarefas.forEach(t => { if (t.resp) set.add(t.resp); }));
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
 const PRIO = {alta:{t:'Alta', c:'bad', o:0}, normal:{t:'Normal', c:'', o:1}, baixa:{t:'Baixa', c:'', o:2}};
 function ordenaTarefa(a, b){
   const pa = (PRIO[a.prioridade] || PRIO.normal).o, pb = (PRIO[b.prioridade] || PRIO.normal).o;
@@ -862,6 +875,7 @@ function linhaTarefa(t, mostraAmb){
     else tag = `<span class="tag">${fmtData(t.prazo)}</span>`;
   }
   if (t.prioridade === 'alta') tag += ' <span class="tag bad">Alta</span>';
+  if (t.resp) tag = `<span class="tag">👷 ${esc(t.resp)}</span> ` + tag;
   return `<div class="item ${t.feita ? 'done' : ''}">
     <div class="tapzone" onclick="event.stopPropagation();alternarTarefa('${t.ambId}','${t.id}')" role="checkbox" aria-checked="${!!t.feita}" tabindex="0" aria-label="Concluir ${esc(t.titulo)}">
       <div class="check ${t.feita ? 'on' : ''}">✓</div></div>
@@ -870,11 +884,20 @@ function linhaTarefa(t, mostraAmb){
       <div class="tiny muted">${mostraAmb ? esc(t.amb) : ''}</div>${tag ? `<div style="margin-top:4px">${tag}</div>` : ''}</div>
     <div class="muted">›</div></div>`;
 }
+window.setFiltroResp = v => { ui.filtroResp = v; render(); };
 function renderTarefas(){
   chipsAmbiente($('#filtroTar'), ui.filtroAmb, 'setFiltroAmb');
+  const resps = responsaveis();
+  $('#wrapResp').style.display = resps.length ? 'block' : 'none';
+  $('#filtroResp').innerHTML = resps.length
+    ? [`<button class="chip ${ui.filtroResp === 'all' ? 'on' : ''}" onclick="setFiltroResp('all')">Todos</button>`]
+      .concat(resps.map(r => {
+        const n = contarPorResp(r);
+        return `<button class="chip ${ui.filtroResp === r ? 'on' : ''}" onclick="setFiltroResp(${JSON.stringify(r).replace(/"/g, '&quot;')})">👷 ${esc(r)}${n ? ' · ' + n : ''}</button>`;
+      })).join('') : '';
   const u = U(); const arr = [];
   u.ambientes.forEach(a => { if (ui.filtroAmb === 'all' || ui.filtroAmb === a.id)
-    a.tarefas.forEach(t => arr.push({...t, ambId:a.id, amb:a.nome})); });
+    a.tarefas.forEach(t => { if (ui.filtroResp === 'all' || t.resp === ui.filtroResp) arr.push({...t, ambId:a.id, amb:a.nome}); }); });
   const abertas = arr.filter(t => !t.feita).length, feitas = arr.length - abertas;
   $('#resumoTar').innerHTML = `<b>${abertas}</b> aberta${abertas!==1?'s':''} · ${feitas} concluída${feitas!==1?'s':''}`;
   $('#toggleFeitas').textContent = ui.verFeitas ? 'Ocultar feitas' : 'Mostrar feitas';
@@ -1238,6 +1261,9 @@ window.editarTarefa = (tid, ambId) => {
     corpo: `<label for="tTit">O que fazer *</label><input type="text" id="tTit" value="${esc(t ? t.titulo : '')}" placeholder="Ex.: Assentar porcelanato do piso">
       <div class="err" id="tErr">Descreva a tarefa.</div>
       <label for="tAmb">Ambiente</label><select id="tAmb">${opAmb}</select>
+      <label for="tResp">Responsável</label>
+      <input type="text" id="tResp" list="listaResp" value="${esc(t ? (t.resp || '') : '')}" placeholder="Ex.: Dilmar, Eletricista, Gesseiro…">
+      <datalist id="listaResp">${responsaveis().map(r => `<option value="${esc(r)}"></option>`).join('')}</datalist>
       <div class="f2"><div><label for="tPrazo">Prazo</label><input type="date" id="tPrazo" value="${t && t.prazo ? t.prazo : ''}"></div>
       <div><label for="tPrio">Prioridade</label><select id="tPrio">${opPr}</select></div></div>
       <label for="tObs">Observações</label><textarea id="tObs" placeholder="Responsável, detalhe do serviço…">${esc(t ? t.obs : '')}</textarea>`,
@@ -1249,7 +1275,7 @@ window.editarTarefa = (tid, ambId) => {
         const titulo = val('tTit');
         if (!titulo){ $('#tErr').classList.add('on'); $('#tTit').focus(); return; }
         const destino = A($('#tAmb').value) || a;
-        const d = {titulo, prazo:val('tPrazo'), prioridade:$('#tPrio').value, obs:val('tObs')};
+        const d = {titulo, prazo:val('tPrazo'), prioridade:$('#tPrio').value, obs:val('tObs'), resp:val('tResp')};
         if (t){ Object.assign(t, d); if (destino.id !== a.id){ a.tarefas = a.tarefas.filter(x => x.id !== t.id); destino.tarefas.push(t); } }
         else destino.tarefas.push({id:uid(), feita:false, criadoEm:hoje(), ...d});
         salvar(true); fecharModal(); render(); toast('Tarefa salva');
@@ -1437,7 +1463,7 @@ function contextoObra(ambId, opc){
     if (opc.tarefas){
       L.push('', '### Tarefas');
       if (!a.tarefas.length) L.push('- (nenhuma)');
-      a.tarefas.forEach(t => L.push(`- [${t.feita ? 'x' : ' '}] ${t.titulo}${t.prazo ? ' (prazo ' + fmtData(t.prazo) + ')' : ''}${t.prioridade === 'alta' ? ' [prioridade alta]' : ''}${t.obs ? ' — ' + t.obs : ''}`));
+      a.tarefas.forEach(t => L.push(`- [${t.feita ? 'x' : ' '}] ${t.titulo}${t.resp ? ' [resp.: ' + t.resp + ']' : ''}${t.prazo ? ' (prazo ' + fmtData(t.prazo) + ')' : ''}${t.prioridade === 'alta' ? ' [prioridade alta]' : ''}${t.obs ? ' — ' + t.obs : ''}`));
     }
   });
   if (ambId === 'all'){
@@ -1560,7 +1586,7 @@ function relatorioMD(){
     }
     if (a.tarefas.length){
       L.push('**Tarefas**');
-      a.tarefas.slice().sort(ordenaTarefa).forEach(t2 => L.push(`- [${t2.feita ? 'x' : ' '}] ${t2.titulo}${t2.prazo ? ` — prazo ${fmtData(t2.prazo)}` : ''}${t2.prioridade === 'alta' ? ' **(alta)**' : ''}`));
+      a.tarefas.slice().sort(ordenaTarefa).forEach(t2 => L.push(`- [${t2.feita ? 'x' : ' '}] ${t2.titulo}${t2.resp ? ` — ${t2.resp}` : ''}${t2.prazo ? ` — prazo ${fmtData(t2.prazo)}` : ''}${t2.prioridade === 'alta' ? ' **(alta)**' : ''}`));
       L.push('');
     }
     if (a.arquivos.length){
@@ -1615,6 +1641,83 @@ $('#jsonPick').addEventListener('change', async e => {
   } catch(err){ console.error(err); toast('Arquivo inválido — use um backup do Obra em Dia.', 3600); }
 });
 
+/* ============================ IMPORTAR LISTA ============================ */
+const chave = t => String(t || '').trim().toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+
+function mesclarLista(pacote){
+  const r = {unidades:0, ambientes:0, tarefas:0, materiais:0, medidas:0, pulados:0};
+  (pacote.unidades || []).forEach(un => {
+    let u = S.unidades.find(x => chave(x.nome) === chave(un.nome)
+      || (un.apelidos || []).some(al => chave(x.nome) === chave(al)));
+    if (!u){
+      u = {id:uid(), nome:un.nome, endereco:un.endereco || '', orcamento:parseNum(un.orcamento),
+           criadoEm:hoje(), ambientes:[]};
+      S.unidades.push(u); r.unidades++;
+    }
+    (un.ambientes || []).forEach(am => {
+      let a = u.ambientes.find(x => chave(x.nome) === chave(am.nome)
+        || (am.apelidos || []).some(al => chave(x.nome) === chave(al)));
+      if (!a){
+        a = novoAmbiente(am.nome); u.ambientes.push(a); r.ambientes++;
+      }
+      // medidas: só preenche o que ainda está vazio, nunca sobrescreve
+      ['largura','comprimento','peDireito'].forEach(k => {
+        if (parseNum(am[k]) && !parseNum(a[k])){ a[k] = parseNum(am[k]); r.medidas++; }
+      });
+      if (am.obs){ const nova = String(am.obs).trim();
+        if (!chave(a.obs || '').includes(chave(nova))) a.obs = (a.obs ? a.obs + '\n' : '') + nova; }
+      if (am.revest) a.revest = Object.assign(a.revest || revestPadrao(a.nome), am.revest);
+
+      (am.tarefas || []).forEach(t => {
+        if (a.tarefas.some(x => chave(x.titulo) === chave(t.titulo))){ r.pulados++; return; }
+        a.tarefas.push({id:uid(), feita:false, criadoEm:hoje(), titulo:t.titulo,
+          prazo:t.prazo || '', prioridade:t.prioridade || 'normal', obs:t.obs || '', resp:t.resp || ''});
+        r.tarefas++;
+      });
+      (am.materiais || []).forEach(m => {
+        if (a.materiais.some(x => chave(x.nome) === chave(m.nome))){ r.pulados++; return; }
+        a.materiais.push({id:uid(), recibos:[], criadoEm:hoje(), nome:m.nome,
+          unidade:m.unidade || 'un', precoUnit:parseNum(m.precoUnit), qtdPrevista:parseNum(m.qtdPrevista),
+          qtdComprada:parseNum(m.qtdComprada), qtdUsada:parseNum(m.qtdUsada),
+          fornecedor:m.fornecedor || '', obs:m.obs || ''});
+        r.materiais++;
+      });
+    });
+  });
+  return r;
+}
+
+$('#listaPick').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  e.target.value = '';
+  let pacote;
+  try {
+    pacote = JSON.parse(await f.text());
+    if (!pacote || pacote.app !== 'obra-em-dia-lista' || !Array.isArray(pacote.unidades)) throw 0;
+  } catch(err){ return toast('Arquivo inválido — use uma lista gerada para o Obra em Dia.', 4000); }
+  const qtd = (pacote.unidades || []).reduce((t, u) => t + (u.ambientes || []).reduce(
+    (s2, a) => s2 + (a.tarefas || []).length + (a.materiais || []).length, 0), 0);
+  modal({
+    titulo:'Importar lista',
+    corpo:`<p class="small" style="margin:14px 0 0">${esc(pacote.titulo || 'Lista')} — <b>${qtd} ${qtd === 1 ? 'item' : 'itens'}</b> em ${pl((pacote.unidades || []).length, 'unidade')}.</p>
+      <div class="hint">Os itens são <b>acrescentados</b>. Nada é apagado e o que já existe com o mesmo nome é pulado, então dá para importar de novo depois de atualizar a sua lista.</div>`,
+    botoes:[{txt:'Cancelar', cls:'gh', fn:fecharModal}, {txt:'Importar', fn:async () => {
+      const r = mesclarLista(pacote);
+      await salvar(true); fecharModal(); irPara('painel');
+      modal({titulo:'Importado', corpo:`<div class="list" style="margin-top:12px">
+        ${[['🏠','unidade','unidades',r.unidades],['◫','ambiente','ambientes',r.ambientes],
+           ['✓','tarefa','tarefas',r.tarefas],['▤','material','materiais',r.materiais],
+           ['📐','medida preenchida','medidas preenchidas',r.medidas]]
+          .filter(([,,,n]) => n > 0)
+          .map(([i, s1, s2, n]) => `<div class="item"><div class="av">${i}</div><div class="grow"><b>${n}</b> ${n === 1 ? s1 : s2}</div></div>`).join('')
+          || '<div class="item"><div class="grow small muted">Nada novo: tudo já estava no app.</div></div>'}
+        ${r.pulados ? `<div class="item"><div class="av">↩</div><div class="grow small muted"><b>${r.pulados}</b> ${r.pulados === 1 ? 'item já existia e foi pulado' : 'itens já existiam e foram pulados'}</div></div>` : ''}
+        </div>`, botoes:[{txt:'Ver a obra', fn:fecharModal}]});
+    }}]
+  });
+});
+
 /* ============================ MENU ============================ */
 $('#btnMenu').onclick = async () => {
   let uso = '';
@@ -1631,6 +1734,7 @@ $('#btnMenu').onclick = async () => {
       ${item('✨','Perguntar ao Claude','Monta a pergunta com os dados','menuClaude')}
       ${item('💾','Backup dos dados','Só os textos e números (leve)','menuBk1')}
       ${item('🗂️','Backup completo','Inclui fotos e plantas (pesado)','menuBk2')}
+      ${item('📥','Importar lista','Acrescenta itens sem apagar nada','menuLista')}
       ${item('↩️','Restaurar backup','Substitui tudo pelo arquivo','menuRest')}
       ${item('🏠','Unidades','Trocar, criar ou editar','menuUni')}
       ${item('❓','Como usar','Guia rápido do app','menuAjuda')}
@@ -1643,6 +1747,7 @@ $('#btnMenu').onclick = async () => {
       go('menuClaude', () => { fecharModal(); setTimeout(() => abrirClaude('all'), 120); });
       go('menuBk1', () => { fecharModal(); backup(false); });
       go('menuBk2', () => { fecharModal(); backup(true); });
+      go('menuLista', () => { fecharModal(); $('#listaPick').click(); });
       go('menuRest', () => { fecharModal(); $('#jsonPick').click(); });
       go('menuUni', () => { fecharModal(); setTimeout(() => $('#btnUnits').click(), 120); });
       go('menuAjuda', () => { fecharModal(); setTimeout(ajuda, 120); });
@@ -1669,13 +1774,14 @@ function ajuda(){
     <p><b>5. Tarefas.</b> Toque no quadrinho para concluir. Prazo vencido aparece em vermelho no painel.</p>
     <p><b>6. Claude.</b> O botão ✨ monta um texto com as medidas e os materiais do ambiente e copia para você colar no Claude — bom para calcular m², perdas, quantidade de caixas e especificações.</p>
     <p><b>7. Instalar.</b> No Android, ⋯ › Instalar no celular. No iPhone, use <i>Compartilhar › Adicionar à Tela de Início</i> no Safari. Depois abre em tela cheia e funciona sem internet.</p>
-    <p><b>8. Backup.</b> Os dados ficam só neste aparelho. Faça o backup completo de vez em quando e guarde no Drive.</p>
+    <p><b>8. Importar lista.</b> Em ⋯ › Importar lista você acrescenta de uma vez tarefas, compras e medidas vindas de uma lista pronta. Ela soma ao que já existe e pula o que estiver repetido, então pode importar de novo sempre que a sua lista mudar.</p>
+    <p><b>9. Backup.</b> Os dados ficam só neste aparelho. Faça o backup completo de vez em quando e guarde no Drive.</p>
     <p><b>⚠️ No iPhone:</b> se você abrir o app pelo Safari sem instalar na tela de início, o próprio iOS apaga os dados depois de <b>7 dias sem uso</b>. Instale na tela de início e faça backup — aí os dados ficam.</p></div>`,
     botoes:[{txt:'Entendi', fn:fecharModal}]});
 }
 
 /* ============================ EVENTOS E BOOT ============================ */
-const VERSAO_APP = 'v2';
+const VERSAO_APP = 'v3';
 let podeInstalar = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); podeInstalar = e; });
 window.addEventListener('appinstalled', () => { podeInstalar = null; toast('Instalado 🎉'); });
@@ -1689,6 +1795,18 @@ $('#addTar').onclick = () => editarTarefa(null, ui.filtroAmb !== 'all' ? ui.filt
 $('#addArq').onclick = () => pedirArquivos(null);
 $('#claudePainel').onclick = () => abrirClaude('all');
 $('#toggleFeitas').onclick = () => { ui.verFeitas = !ui.verFeitas; render(); };
+$('#copiarTar').onclick = async () => {
+  const u = U(); const arr = [];
+  u.ambientes.forEach(a => { if (ui.filtroAmb === 'all' || ui.filtroAmb === a.id)
+    a.tarefas.forEach(t => { if ((ui.filtroResp === 'all' || t.resp === ui.filtroResp) && !t.feita)
+      arr.push({...t, amb:a.nome}); }); });
+  if (!arr.length) return toast('Nada em aberto para copiar.');
+  arr.sort(ordenaTarefa);
+  const quem = ui.filtroResp === 'all' ? '' : ' — ' + ui.filtroResp;
+  const txt = [`${u.nome}${quem} (${fmtData(hoje())})`, ''].concat(
+    arr.map(t => `• ${t.titulo}${t.amb ? ` [${t.amb}]` : ''}${t.prazo ? ` — até ${fmtData(t.prazo)}` : ''}${t.obs ? `\n   ${t.obs}` : ''}`)).join('\n');
+  toast(await copiar(txt) ? '📋 Lista copiada' : 'Não consegui copiar');
+};
 
 
 function migrar(s){
@@ -1698,6 +1816,8 @@ function migrar(s){
     u.orcamento = parseNum(u.orcamento);
     u.ambientes.forEach(a => {
       a.arquivos = a.arquivos || []; a.materiais = a.materiais || []; a.tarefas = a.tarefas || [];
+      const RENOMEAR = {'Quarto Arthur':'Suíte Arthur', 'Quarto Francisco':'Suíte Francisco'};
+      if (RENOMEAR[a.nome]) a.nome = RENOMEAR[a.nome];
       if (!a.revest) a.revest = revestPadrao(a.nome);
       a.revest.aberturas = a.revest.aberturas || [];
       a.materiais.forEach(m => { m.recibos = m.recibos || []; });

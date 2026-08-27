@@ -1,6 +1,6 @@
 /* Obra em Dia — service worker
    TROQUE A VERSAO A CADA PUBLICACAO para forcar a atualizacao nos aparelhos. */
-const VERSAO = 'obra-em-dia-v2';
+const VERSAO = 'obra-em-dia-v3';
 const ARQUIVOS = [
   './', './index.html', './manifest.webmanifest',
   './icones/icon-192.png', './icones/icon-512.png', './icones/icon-512-maskable.png'
